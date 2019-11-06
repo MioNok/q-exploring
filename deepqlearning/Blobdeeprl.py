@@ -2,7 +2,10 @@ from keras.models import Sequential
 from keras.layers import Dense, Dropout, Conv2D, MaxPooling2D, Activation, Flatten
 from keras.callbacks import TensorBoard
 from keras.optimizers import Adam
+
 import tensorflow as tf
+from keras import backend
+from tensorflow.keras import backend
 import random
 
 from tqdm import tqdm
@@ -16,7 +19,7 @@ import numpy as np
 
 REPLAY_MEMORY_SIZE = 50000
 MIN_REPLAY_MEMORY_SIZE = 1000
-MINBATCH_SIZE = 64
+MINIBATCH_SIZE = 64
 DISCOUNT = 0.99
 MODEL_NAME="256x2"
 UPDATE_TARGET_EVERY = 5
@@ -24,7 +27,7 @@ UPDATE_TARGET_EVERY = 5
 MIN_REWARD = -200
 #MEMORY_FRACTIon = 0.2
 
-EPISODES = 20000
+EPISODES = 2000
 
 epsilon = 1
 EPSILON_DECAY = 0.9975
@@ -35,9 +38,9 @@ SHOW_PREVIEW = False
 
 
 #gpu options.
-gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.33)
+#gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.33)
 
-sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+#sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 
 class Blob():
     def __init__(self, size):
@@ -91,7 +94,6 @@ class Blob():
             
         elif self.y > self.size-1:
             self.y = self.size -1
-            
             
 class BlobEnv:
     SIZE = 10
@@ -169,14 +171,13 @@ class BlobEnv:
         return img
 
 
-
 # For stats
 ep_rewards = [-200]
 
 # For more repetitive results
 random.seed(1)
 np.random.seed(1)
-tf.set_random_seed(1)
+#tf.set_random_seed(1)
 
 # Create models folder
 if not os.path.isdir('models'):
@@ -215,6 +216,7 @@ class ModifiedTensorBoard(TensorBoard):
     def update_stats(self, **stats):
         self._write_logs(stats, self.step)
 
+# Agent class
 class DQNAgent:
     def __init__(self):
         
@@ -228,17 +230,17 @@ class DQNAgent:
         self.replay_memory = deque(maxlen=REPLAY_MEMORY_SIZE)
         
         self.tensorboard = ModifiedTensorBoard(log_dir="logs/{}-{}".format(MODEL_NAME, int(time.time())))
-        self.target_update_coounter = 0
+        self.target_update_counter = 0
         
         
     def create_model(self):
         model  = Sequential()
-        model.add(Conv2D(64,(3,3), input_shape = env.OBSERVATION_SPACE_VALUES))
+        model.add(Conv2D(256,(3,3), input_shape = env.OBSERVATION_SPACE_VALUES))
         model.add(Activation("relu"))
         model.add(MaxPooling2D(2,2))
         model.add(Dropout(0.2))
         
-        model.add(Conv2D(64,(3,3)))
+        model.add(Conv2D(256,(3,3)))
         model.add(Activation("relu"))
         model.add(MaxPooling2D(2,2))
         model.add(Dropout(0.2))
@@ -254,18 +256,18 @@ class DQNAgent:
         
         
     def get_qs(self, state):
-        return self.model.predict(np.array(state).reshape(-1,*state.shape)/255[0])
+        return self.model.predict(np.array(state).reshape(-1, *state.shape)/255)[0]
     
     def train(self, terminal_state, step):
         if len(self.replay_memory) < MIN_REPLAY_MEMORY_SIZE:
             return
         
-        minibatch = random.sample(self.replay_memory, MINBATCH_SIZE)
+        minibatch = random.sample(self.replay_memory, MINIBATCH_SIZE)
         
         current_states = np.array([transition[0] for transition in minibatch])/255
         current_qs_list = self.model.predict(current_states)
-        
-        new_current_states = np.array([[3] for transition in minibatch])/255
+                
+        new_current_states = np.array([transition[3] for transition in minibatch])/255
         future_qs_list = self.target_model.predict(new_current_states)
         
         x= []
@@ -284,7 +286,7 @@ class DQNAgent:
             x.append(current_state)
             y.append(current_qs)
         
-        self.model.fit(np.array(x)/255, np.array(y), batch_size = MINBATCH_SIZE, verbose = 0, shuffle = False, callbacks = [self.tensorboard] if terminal_state else None)
+        self.model.fit(np.array(x)/255, np.array(y), batch_size = MINIBATCH_SIZE, verbose = 0, shuffle = False, callbacks = [self.tensorboard] if terminal_state else None)
         
         
         #updating to determin fi we weant to update target model
@@ -297,11 +299,12 @@ class DQNAgent:
    
 
          
+
 env = BlobEnv()
 agent = DQNAgent()
 
 
-for episode in tqdm(range(1, EPISODES), ascii = True, unit= "episode"):
+for episode in tqdm(range(1, EPISODES+1), ascii = True, unit= "episodes"):
     agent.tensorboard.step = episode
     
     episode_reward = 0
@@ -316,21 +319,21 @@ for episode in tqdm(range(1, EPISODES), ascii = True, unit= "episode"):
         else:
             action = np.random.randint(0, env.ACTION_SPACE_SIZE)
     
-    new_state, reward , done = env.step(action)
+        new_state, reward , done = env.step(action)
     
-    episode_reward += reward
+        episode_reward += reward
     
-    if SHOW_PREVIEW and not episode % AGGREGATE_STATS_EVERY:
-        env.render()
+        if SHOW_PREVIEW and not episode % AGGREGATE_STATS_EVERY:
+            env.render()
         
-    agent.update_replay_memory((current_state, action, reward, new_state, done))
-    agent.train(done,step)
+        agent.update_replay_memory((current_state, action, reward, new_state, done))
+        agent.train(done,step)
     
-    curernt_state = new_state
-    step+=1
+        current_state = new_state
+        step+=1
     
     
-      # Append episode reward to a list and log stats (every given number of episodes)
+    # Append episode reward to a list and log stats (every given number of episodes)
     ep_rewards.append(episode_reward)
     if not episode % AGGREGATE_STATS_EVERY or episode == 1:
         average_reward = sum(ep_rewards[-AGGREGATE_STATS_EVERY:])/len(ep_rewards[-AGGREGATE_STATS_EVERY:])
@@ -346,7 +349,3 @@ for episode in tqdm(range(1, EPISODES), ascii = True, unit= "episode"):
     if epsilon > MIN_EPSILON:
         epsilon *= EPSILON_DECAY
         epsilon = max(MIN_EPSILON, epsilon)
-    
-    
-
-
