@@ -9,7 +9,7 @@ import time
 style.use("ggplot")
 
 
-SIZE = 20
+SIZE = 10
 EPISODES = 25000
 MOVE_PENALTY = 1
 ENEMY_PENALTY = 300
@@ -17,7 +17,7 @@ FOOD_REWARD = 25
 
 epsilon = 0.9
 EPS_DECAY = 0.9998
-SHOW_EVERY = 3000
+SHOW_EVERY = 1000
 
 start_q_table = None #or filename
 

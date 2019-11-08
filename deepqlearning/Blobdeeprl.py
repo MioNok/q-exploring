@@ -1,7 +1,9 @@
-from keras.models import Sequential
+from keras.models import Sequential, load_model
 from keras.layers import Dense, Dropout, Conv2D, MaxPooling2D, Activation, Flatten
 from keras.callbacks import TensorBoard
 from keras.optimizers import Adam
+
+import keras.backend.tensorflow_backend as backend
 
 import tensorflow as tf
 from keras import backend
@@ -17,6 +19,9 @@ from collections import deque
 import time
 import numpy as np
 
+#LOAD_MODEL = "models/256x2__-200.00max_-200.00avg_-200.00min__1573146885.model"
+LOAD_MODEL = None
+
 REPLAY_MEMORY_SIZE = 50000
 MIN_REPLAY_MEMORY_SIZE = 1000
 MINIBATCH_SIZE = 64
@@ -27,20 +32,24 @@ UPDATE_TARGET_EVERY = 5
 MIN_REWARD = -200
 #MEMORY_FRACTIon = 0.2
 
-EPISODES = 2000
+EPISODES = 20000
 
 epsilon = 1
 EPSILON_DECAY = 0.9975
 MIN_EPSILON = 0.001
 
-AGGREGATE_STATS_EVERY = 50
+AGGREGATE_STATS_EVERY = 100
 SHOW_PREVIEW = False
 
 
 #gpu options.
-#gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.33)
+#gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.7)
 
 #sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+
+config = tf.ConfigProto()
+config.gpu_options.allow_growth = True
+session = tf.Session(config=config)
 
 class Blob():
     def __init__(self, size):
@@ -50,6 +59,9 @@ class Blob():
     
     def __sub__(self, other):
         return (self.x - other.x, self.y - other.y)
+
+    def __eq__(self, other):
+        return self.x == other.x and self.y == other.y
     
     def action(self,choice):
         
@@ -159,7 +171,7 @@ class BlobEnv:
         img = self.get_image()
         img = img.resize((300, 300))  # resizing so we can see our agent in all its glory.
         cv2.imshow("image", np.array(img))  # show it!
-        cv2.waitKey(1)
+        cv2.waitKey(100)
 
     # FOR CNN #
     def get_image(self):
@@ -234,22 +246,28 @@ class DQNAgent:
         
         
     def create_model(self):
-        model  = Sequential()
-        model.add(Conv2D(256,(3,3), input_shape = env.OBSERVATION_SPACE_VALUES))
-        model.add(Activation("relu"))
-        model.add(MaxPooling2D(2,2))
-        model.add(Dropout(0.2))
-        
-        model.add(Conv2D(256,(3,3)))
-        model.add(Activation("relu"))
-        model.add(MaxPooling2D(2,2))
-        model.add(Dropout(0.2))
-        
-        model.add(Flatten())
-        model.add(Dense(64))
-        model.add(Dense(env.ACTION_SPACE_SIZE, activation = "linear"))
-        model.compile(loss = "mse", optimizer = Adam(lr=0.001), metrics=["accuracy"])
-        return model
+
+        if LOAD_MODEL is not None:
+            print("Loading", LOAD_MODEL)
+            model = load_model(LOAD_MODEL)
+            print("Loaded model", LOAD_MODEL)
+        else:
+            model  = Sequential()
+            model.add(Conv2D(256,(3,3), input_shape = env.OBSERVATION_SPACE_VALUES))
+            model.add(Activation("relu"))
+            model.add(MaxPooling2D(2,2))
+            model.add(Dropout(0.2))
+            
+            model.add(Conv2D(256,(3,3)))
+            model.add(Activation("relu"))
+            model.add(MaxPooling2D(2,2))
+            model.add(Dropout(0.2))
+            
+            model.add(Flatten())
+            model.add(Dense(64))
+            model.add(Dense(env.ACTION_SPACE_SIZE, activation = "linear"))
+            model.compile(loss = "mse", optimizer = Adam(lr=0.001), metrics=["accuracy"])
+            return model
     
     def update_replay_memory(self,transition):
         self.replay_memory.append(transition)
@@ -323,7 +341,7 @@ for episode in tqdm(range(1, EPISODES+1), ascii = True, unit= "episodes"):
     
         episode_reward += reward
     
-        if SHOW_PREVIEW and not episode % AGGREGATE_STATS_EVERY:
+        if SHOW_PREVIEW and not episode % 1:
             env.render()
         
         agent.update_replay_memory((current_state, action, reward, new_state, done))
@@ -342,8 +360,8 @@ for episode in tqdm(range(1, EPISODES+1), ascii = True, unit= "episodes"):
         agent.tensorboard.update_stats(reward_avg=average_reward, reward_min=min_reward, reward_max=max_reward, epsilon=epsilon)
 
         # Save model, but only when min reward is greater or equal a set value
-        if min_reward >= MIN_REWARD:
-            agent.model.save(f'models/{MODEL_NAME}__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}.model')
+        #if min_reward >= MIN_REWARD:
+        agent.model.save(f'models/{MODEL_NAME}__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}.model')
 
     # Decay epsilon
     if epsilon > MIN_EPSILON:
