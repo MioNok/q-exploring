@@ -19,7 +19,7 @@ from collections import deque
 import time
 import numpy as np
 
-#LOAD_MODEL = "models/256x2__-200.00max_-200.00avg_-200.00min__1573146885.model"
+#LOAD_MODEL = "models/256x2____25.00max_-200.75avg_-483.00min__1573480765.model"
 LOAD_MODEL = None
 
 REPLAY_MEMORY_SIZE = 50000
@@ -35,7 +35,7 @@ MIN_REWARD = -200
 EPISODES = 20000
 
 epsilon = 1
-EPSILON_DECAY = 0.9975
+EPSILON_DECAY = 0.99975
 MIN_EPSILON = 0.001
 
 AGGREGATE_STATS_EVERY = 100
@@ -108,7 +108,7 @@ class Blob():
             self.y = self.size -1
             
 class BlobEnv:
-    SIZE = 10
+    SIZE = 20
     RETURN_IMAGES = True
     MOVE_PENALTY = 1
     ENEMY_PENALTY = 300
@@ -129,15 +129,36 @@ class BlobEnv:
         while self.food == self.player:
             self.food = Blob(self.SIZE)
         self.enemy = Blob(self.SIZE)
+        self.enemy2 = Blob(self.SIZE)
+        self.enemy3 = Blob(self.SIZE)
+        self.enemy4 = Blob(self.SIZE)
+        self.enemy5 = Blob(self.SIZE)
+        self.enemy6 = Blob(self.SIZE)
+
+        #Not sure why..
         while self.enemy == self.player or self.enemy == self.food:
             self.enemy = Blob(self.SIZE)
+        
+        while self.enemy2 == self.player or self.enemy2 == self.food:
+            self.enemy2 = Blob(self.SIZE)
+
+        while self.enemy3 == self.player or self.enemy3 == self.food:
+            self.enemy3 = Blob(self.SIZE)
+        
+        while self.enemy4 == self.player or self.enemy4 == self.food:
+            self.enemy4 = Blob(self.SIZE)
+        while self.enemy5 == self.player or self.enemy5 == self.food:
+            self.enemy5 = Blob(self.SIZE)
+        while self.enemy6 == self.player or self.enemy6 == self.food:
+            self.enemy6 = Blob(self.SIZE)
 
         self.episode_step = 0
 
+        #Else is only if we dont use images as input
         if self.RETURN_IMAGES:
             observation = np.array(self.get_image())
         else:
-            observation = (self.player-self.food) + (self.player-self.enemy)
+            observation = (self.player-self.food) + (self.player-self.enemy) +(self.player-self.enemy2) +(self.player-self.enemy3) +(self.player-self.enemy4) + (self.player-self.enemy5) +(self.player-self.enemy6)
         return observation
 
     def step(self, action):
@@ -149,13 +170,25 @@ class BlobEnv:
         #self.food.move()
         ##############
 
+        #Else is only if we dont use images as input
         if self.RETURN_IMAGES:
             new_observation = np.array(self.get_image())
         else:
-            new_observation = (self.player-self.food) + (self.player-self.enemy)
+            new_observation = (self.player-self.food) + (self.player-self.enemy)+(self.player-self.enemy2) +(self.player-self.enemy3) +(self.player-self.enemy4) + (self.player-self.enemy5) +(self.player-self.enemy6)
 
         if self.player == self.enemy:
             reward = -self.ENEMY_PENALTY
+        elif self.player == self.enemy2:
+            reward = -self.ENEMY_PENALTY
+        elif self.player == self.enemy3:
+            reward = -self.ENEMY_PENALTY
+        elif self.player == self.enemy4:
+            reward = -self.ENEMY_PENALTY
+        elif self.player == self.enemy5:
+            reward = -self.ENEMY_PENALTY
+        elif self.player == self.enemy6:
+            reward = -self.ENEMY_PENALTY
+
         elif self.player == self.food:
             reward = self.FOOD_REWARD
         else:
@@ -177,7 +210,12 @@ class BlobEnv:
     def get_image(self):
         env = np.zeros((self.SIZE, self.SIZE, 3), dtype=np.uint8)  # starts an rbg of our size
         env[self.food.x][self.food.y] = self.d[self.FOOD_N]  # sets the food location tile to green color
-        env[self.enemy.x][self.enemy.y] = self.d[self.ENEMY_N]  # sets the enemy location to red
+        env[self.enemy.x][self.enemy.y] = self.d[self.ENEMY_N]
+        env[self.enemy2.x][self.enemy2.y] = self.d[self.ENEMY_N]
+        env[self.enemy3.x][self.enemy3.y] = self.d[self.ENEMY_N]
+        env[self.enemy4.x][self.enemy4.y] = self.d[self.ENEMY_N]
+        env[self.enemy5.x][self.enemy4.y] = self.d[self.ENEMY_N]
+        env[self.enemy6.x][self.enemy4.y] = self.d[self.ENEMY_N]  # sets the enemy location to red
         env[self.player.x][self.player.y] = self.d[self.PLAYER_N]  # sets the player tile to blue
         img = Image.fromarray(env, 'RGB')  # reading to rgb. Apparently. Even tho color definitions are bgr. ???
         return img
@@ -267,7 +305,7 @@ class DQNAgent:
             model.add(Dense(64))
             model.add(Dense(env.ACTION_SPACE_SIZE, activation = "linear"))
             model.compile(loss = "mse", optimizer = Adam(lr=0.001), metrics=["accuracy"])
-            return model
+        return model
     
     def update_replay_memory(self,transition):
         self.replay_memory.append(transition)
@@ -307,7 +345,7 @@ class DQNAgent:
         self.model.fit(np.array(x)/255, np.array(y), batch_size = MINIBATCH_SIZE, verbose = 0, shuffle = False, callbacks = [self.tensorboard] if terminal_state else None)
         
         
-        #updating to determin fi we weant to update target model
+        #updating to determin if we weant to update target model
         if terminal_state:
             self.target_update_counter +=1
             
@@ -341,7 +379,7 @@ for episode in tqdm(range(1, EPISODES+1), ascii = True, unit= "episodes"):
     
         episode_reward += reward
     
-        if SHOW_PREVIEW and not episode % 1:
+        if SHOW_PREVIEW and not episode % 10:
             env.render()
         
         agent.update_replay_memory((current_state, action, reward, new_state, done))

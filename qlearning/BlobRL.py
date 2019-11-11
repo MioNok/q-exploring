@@ -9,17 +9,17 @@ import time
 style.use("ggplot")
 
 
-SIZE = 10
-EPISODES = 25000
+SIZE = 8
+EPISODES = 300000
 MOVE_PENALTY = 1
 ENEMY_PENALTY = 300
 FOOD_REWARD = 25
 
-epsilon = 0.9
-EPS_DECAY = 0.9998
-SHOW_EVERY = 1000
+epsilon = 0
+EPS_DECAY = 0
+SHOW_EVERY = 1
 
-start_q_table = None #or filename
+start_q_table = "qtable-1573486800.pickle" #None or filename
 
 LEARNING_RATE = 0.1
 DISCOUNT = 0.95
@@ -44,13 +44,13 @@ class Blob():
     def action(self,choise):
         
         if choise == 0:
-            self.move(x =1, y=1)
+            self.move(x =1, y=0)
         elif choise == 1:
-            self.move(x=-1, y=-1)
+            self.move(x=-1, y=0)
         elif choise == 2:
-            self.move(x=-1, y=1)
+            self.move(x=0, y=1)
         elif choise == 3:
-            self.move(x=1, y=-1)
+            self.move(x=0, y=-1)
     
     def move(self, x=False, y= False):
         if not x:
@@ -76,18 +76,24 @@ class Blob():
             self.y = SIZE -1
         
         
-
+print("creating table")
 if start_q_table is None:
     q_table = {}
     for x1 in range(-SIZE+1, SIZE):
+        (print("Dingg"))
         for y1 in range(-SIZE+1, SIZE):
             for x2 in range(-SIZE+1, SIZE):
                 for y2 in range(-SIZE+1, SIZE):
-                    q_table[((x1,y1),(x2,y2))] = [np.random.uniform(-5,0) for i in range(4)]
+                    for x3 in range(-SIZE+1, SIZE):
+                        for y3 in range(-SIZE+1, SIZE):
+                            q_table[((x1,y1),(x2,y2),(x3,y3))] = [np.random.uniform(-5,0) for i in range(4)]
+    #q_table = np.zeros([SIZE*SIZE*SIZE*SIZE*SIZE, 4]) #
 
 else:
     with open(start_q_table,"rb") as f:
         q_table = pickle.load(f)
+
+print("Table done/imported")
         
 episode_rewards = []
 
@@ -95,6 +101,7 @@ for episode in range(EPISODES):
     player = Blob()
     food = Blob()
     enemy = Blob()
+    enemy2 = Blob()
     
     if episode % SHOW_EVERY == 0:
         print("On episode", episode, "epsilon:" , epsilon)
@@ -107,7 +114,7 @@ for episode in range(EPISODES):
         
     episode_reward = 0
     for i in range(200):
-        obs = (player - food, player - enemy)
+        obs = (player - food, player - enemy, player - enemy2)
         if np.random.random() > epsilon:
             action = np.argmax(q_table[obs])
             #action = np.random.randint(0,4)
@@ -118,10 +125,21 @@ for episode in range(EPISODES):
         player.action(action)
         #print(action)
         
-        #enemy.move()
-        #food.move()
+        enemy.move()
+        enemy2.move()
+        food.move()
+
+        #If food is under enemy ->
+        if enemy.x == food.x and enemy.y == food.y:
+            food.move()
+        if enemy2.x == food.x and enemy2.y == food.y:
+            food.move()
         
+        #Check penalties
         if player.x == enemy.x and player.y == enemy.y:
+            reward = -ENEMY_PENALTY
+        
+        if player.x == enemy2.x and player.y == enemy2.y:
             reward = -ENEMY_PENALTY
             
         elif player.x  == food.x and player.y ==food.y:
@@ -130,7 +148,7 @@ for episode in range(EPISODES):
         else:
             reward = -MOVE_PENALTY
         
-        new_obs = (player - food, player - enemy)
+        new_obs = (player - food, player - enemy, player - enemy2)
         max_future_q = np.max(q_table[new_obs])
         current_q = q_table[obs][action]
         
@@ -150,6 +168,7 @@ for episode in range(EPISODES):
             env[food.y][food.x] = d[FOOD_N]
             env[player.y][player.x] = d[PLAYER_N]
             env[enemy.y][enemy.x] = d[ENEMY_N]
+            env[enemy2.y][enemy2.x] = d[ENEMY_N]
             
             img = Image.fromarray(env, "RGB")
             img = img.resize((300,300))
@@ -159,7 +178,7 @@ for episode in range(EPISODES):
                     break               
                 
             else:
-                if cv2.waitKey(30) & 0xFF == ord("q"):
+                if cv2.waitKey(50) & 0xFF == ord("q"):
                     break
                 
         episode_reward += reward
