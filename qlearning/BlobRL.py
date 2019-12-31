@@ -15,7 +15,7 @@ MOVE_PENALTY = 1
 ENEMY_PENALTY = 300
 FOOD_REWARD = 25
 
-epsilon = 0
+epsilon = 1
 EPS_DECAY = 0
 SHOW_EVERY = 1
 
