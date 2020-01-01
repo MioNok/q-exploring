@@ -8,14 +8,19 @@ from collections import deque
 import time
 import numpy as np
 import random
+import tensorflow as tf
+
+EPSILON_DECAY = 0.999
+MIN_EPSILON = 0.05
+EPISODES = 2500
+AGGREGATE_STATS_EVERY = 30
+MODEL_NAME="128x64x32.x"
 
 
-EPSILON_DECAY = 0.99975
-MIN_EPSILON = 0.001
-EPISODES = 5
-AGGREGATE_STATS_EVERY = 100
-SHOW_PREVIEW = True
-MODEL_NAME="128x64x32"
+##### TF gpu settings.
+config = tf.ConfigProto()
+config.gpu_options.allow_growth = True
+session = tf.Session(config=config)
 
 
 
@@ -62,7 +67,7 @@ def main(aphkey,data):
                 action = np.random.randint(0, env.ACTION_SPACE_SIZE)
 
             #print(action)
-            new_state, reward , done, shares = env.step(action)
+            new_state, reward , done = env.step(action)
     
             episode_reward += reward
         
@@ -70,7 +75,7 @@ def main(aphkey,data):
             agent.train(done,step)
 
             if done:
-                print(reward)
+                print(episode_reward)
     
             current_state = new_state
             step+=1

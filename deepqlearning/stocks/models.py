@@ -1,11 +1,15 @@
+
+
+#import keras.backend.tensorflow_backend as backend
+from tensorflow.python.keras import backend 
+from tensorflow.keras import backend
+
+import tensorflow as tf
+
 from keras.models import Sequential, load_model
 from keras.layers import Dense, Dropout, Activation
 from keras.callbacks import TensorBoard
 from keras.optimizers import Adam
-
-import keras.backend.tensorflow_backend as backend
-
-import tensorflow as tf
 
 
 from collections import deque
@@ -14,6 +18,18 @@ import numpy as np
 import pandasql as ps
 import pandas as pd
 import random
+
+# TODO Move as a flags?
+#LOAD_MODEL = None
+LOAD_MODEL = "models/128x64x32__36148.23max_23448.90avg_14896.44min__1577897492.model"
+REPLAY_MEMORY_SIZE = 50000
+MIN_REPLAY_MEMORY_SIZE = 1000
+MODEL_NAME="128x64x32.2"
+
+MINIBATCH_SIZE = 64
+DISCOUNT = 0.9
+
+UPDATE_TARGET_EVERY = 5
 
 
 class Portfolio:
@@ -130,7 +146,7 @@ class StockEnv:
         
         #print(self.current_portfolio.portfolio)
         #time.sleep(2)
-        return next_observation, reward, done , self.current_portfolio.portfolio["share"]
+        return next_observation, reward, done
     
     def get_data(self): 
         current_observation = np.array(self.normalized_stoset.iloc[self.current_step:self.current_step+self.NUM_CANDLES,])
@@ -176,17 +192,7 @@ class ModifiedTensorBoard(TensorBoard):
 
 
 
-# TODO Move as a flags?
-LOAD_MODEL = None
-#LOAD_MODEL = "models/256x2____23.00max_-275.64avg_-489.00min__1573591377.model"
-REPLAY_MEMORY_SIZE = 50000
-MIN_REPLAY_MEMORY_SIZE = 1000
-MODEL_NAME="128x64x32"
 
-MINIBATCH_SIZE = 64
-DISCOUNT = 0.9
-
-UPDATE_TARGET_EVERY = 5
 
 #From Sentdex
 # Agent class
@@ -217,11 +223,11 @@ class DQNAgent:
             model = Sequential()
             model.add(Dense(128, input_shape = self.env.OBSEREVATION_SPACE_VALUES))
             model.add(Activation("relu"))
-            model.add(Dropout(0.1))
+            model.add(Dropout(0.2))
             
             model.add(Dense(64))
             model.add(Activation("relu"))
-            model.add(Dropout(0.1))
+            model.add(Dropout(0.2))
             
             model.add(Dense(32))
             model.add(Dense(self.env.ACTION_SPACE_SIZE, activation = "linear"))
@@ -237,11 +243,11 @@ class DQNAgent:
     
     def train(self, terminal_state, step):
         if len(self.replay_memory) < MIN_REPLAY_MEMORY_SIZE:
-            #print("pling")
+            
             return
-        #print("plong")
+        
         minibatch = random.sample(self.replay_memory, MINIBATCH_SIZE)
-        #print(minibatch)
+        
         
         current_states = np.array([transition[0] for transition in minibatch])/255
         current_qs_list = self.model.predict(current_states)
@@ -260,9 +266,15 @@ class DQNAgent:
                 new_q = reward
             
             current_qs = current_qs_list[index]
-            print("newq",type(new_q))
-            print("current_qs",type(current_qs[action]),"size",current_qs[action].size)
-            current_qs[action] = new_q
+            #if index == 1:
+            #    print("newq",new_q)
+            #    print("current_qs",current_qs[action],"size",current_qs[action].size)
+            try:
+                current_qs[action] = new_q
+            except:
+                print("Index Error" )
+                #print("currentqs:",current_qs[action], type(current_qs[action]))
+                #print("new_q:",current_qs[action],type(new_q))
             
             x.append(current_state)
             y.append(current_qs)
