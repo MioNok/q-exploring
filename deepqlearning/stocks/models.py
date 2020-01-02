@@ -24,7 +24,7 @@ LOAD_MODEL = None
 #LOAD_MODEL = "models/128x64x32__36148.23max_23448.90avg_14896.44min__1577897492.model"
 REPLAY_MEMORY_SIZE = 50000
 MIN_REPLAY_MEMORY_SIZE = 1000
-MODEL_NAME="128x64x32.x"
+MODEL_NAME="256x256x32.50c"
 
 MINIBATCH_SIZE = 64
 DISCOUNT = 0.9
@@ -34,7 +34,7 @@ UPDATE_TARGET_EVERY = 5
 
 class Portfolio:
     def __init__(self):
-        self.portfolio = {"ticker":["AAPL"],
+        self.portfolio = {"ticker":["WBA"],
                           "share": [0],
                           "currentstockvalue": [1],
                           "unusedBP": 10000}
@@ -96,7 +96,7 @@ class StockEnv:
 
         #The data
         stoset = pd.read_csv("Dow2010-2019data.csv")
-        query = """SELECT timestamp, open, high, low, close, volume FROM stoset WHERE ticker = 'MCD' LIMIT 2500"""
+        query = """SELECT timestamp, open, high, low, close, volume FROM stoset WHERE ticker = 'WBA' LIMIT 2500"""
         self.stoset = ps.sqldf(query).iloc[::-1]
         stoset_notimestamp = self.stoset.iloc[:,1:6]
     
