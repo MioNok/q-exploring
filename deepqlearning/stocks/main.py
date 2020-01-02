@@ -63,10 +63,10 @@ def main(aphkey,data):
         while not done:
             if np.random.random() > epsilon:
                 action = np.argmax(agent.get_qs(current_state))
+
             else:
                 action = np.random.randint(0, env.ACTION_SPACE_SIZE)
 
-            #print(action)
             new_state, reward , done = env.step(action)
     
             episode_reward += reward

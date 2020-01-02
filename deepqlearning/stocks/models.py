@@ -7,7 +7,7 @@ from tensorflow.keras import backend
 import tensorflow as tf
 
 from keras.models import Sequential, load_model
-from keras.layers import Dense, Dropout, Activation
+from keras.layers import Dense, Dropout, Activation, Flatten
 from keras.callbacks import TensorBoard
 from keras.optimizers import Adam
 
@@ -43,8 +43,6 @@ class Portfolio:
         
         if action == 0: #sell
             current_observation = stockdata.iloc[current_step:current_step+NUM_CANDLES,]
-            #print(current_observation)
-            #print(current_step)
             
             #Close value of the stock for the current observation
             close_value = current_observation.close.iloc[-1]
@@ -62,16 +60,12 @@ class Portfolio:
                 
                 #Update current stock value
                 self.portfolio["currentstockvalue"] = close_value
-            #else:
-                #print("No shares","numshares",self.portfolio["share"][0])
 
         elif action == 1: #hold
             pass #Do nothing.
                 
         elif action == 2: #buy
             current_observation = stockdata.iloc[current_step:current_step+NUM_CANDLES,]
-            #print(current_observation)
-            #print(current_step)
             
             #Close value of the stock for the current observation
             close_value = current_observation.close.iloc[-1]
@@ -90,8 +84,7 @@ class Portfolio:
                 
                 #Update current stock value
                 self.portfolio["currentstockvalue"] = close_value
-            #else: 
-                #print("We already have shares","numshares",self.portfolio["share"][0])
+
                 
         
         
@@ -110,7 +103,7 @@ class StockEnv:
         #Normalizing using minmax normalzation
         self.normalized_stoset =(stoset_notimestamp-stoset_notimestamp.min())/(stoset_notimestamp.max()-stoset_notimestamp.min())
     
-        self.NUM_CANDLES = 20 
+        self.NUM_CANDLES = 50 
         self.ACTION_SPACE_SIZE = 3 #sell = 0, hold = 1, buy = 2
         self.OBSEREVATION_SPACE_VALUES = (self.NUM_CANDLES, 5) # 20 candles, observations for each candle, OHLC + volume.
         self.MAX_STEPS = 2500 #Currentlty the size of our dataset for each stock
@@ -144,8 +137,6 @@ class StockEnv:
         if self.current_step == self.MAX_STEPS-self.NUM_CANDLES:
             done = True
         
-        #print(self.current_portfolio.portfolio)
-        #time.sleep(2)
         return next_observation, reward, done
     
     def get_data(self): 
@@ -221,14 +212,15 @@ class DQNAgent:
             print("Loaded model", LOAD_MODEL)
         else:
             model = Sequential()
-            model.add(Dense(128, input_shape = self.env.OBSEREVATION_SPACE_VALUES))
+            model.add(Dense(256, input_shape = self.env.OBSEREVATION_SPACE_VALUES))
             model.add(Activation("relu"))
             model.add(Dropout(0.2))
             
-            model.add(Dense(64))
+            model.add(Dense(256))
             model.add(Activation("relu"))
             model.add(Dropout(0.2))
-            
+
+            model.add(Flatten())
             model.add(Dense(32))
             model.add(Dense(self.env.ACTION_SPACE_SIZE, activation = "linear"))
             model.compile(loss = "mse", optimizer = Adam(lr=0.001), metrics=["accuracy"])
@@ -239,20 +231,19 @@ class DQNAgent:
         
         
     def get_qs(self, state):
-        return self.model.predict(np.array(state).reshape(-1, *state.shape)/255)[0]
+        return self.model.predict(np.array(state).reshape(-1, *state.shape))[0]
     
     def train(self, terminal_state, step):
         if len(self.replay_memory) < MIN_REPLAY_MEMORY_SIZE:
-            
             return
         
         minibatch = random.sample(self.replay_memory, MINIBATCH_SIZE)
         
         
-        current_states = np.array([transition[0] for transition in minibatch])/255
+        current_states = np.array([transition[0] for transition in minibatch])
         current_qs_list = self.model.predict(current_states)
                 
-        new_current_states = np.array([transition[3] for transition in minibatch])/255
+        new_current_states = np.array([transition[3] for transition in minibatch])
         future_qs_list = self.target_model.predict(new_current_states)
         
         x= []
@@ -280,7 +271,7 @@ class DQNAgent:
             x.append(current_state)
             y.append(current_qs)
         
-        self.model.fit(np.array(x)/255, np.array(y), batch_size = MINIBATCH_SIZE, verbose = 0, shuffle = False, callbacks = [self.tensorboard] if terminal_state else None)
+        self.model.fit(np.array(x), np.array(y), batch_size = MINIBATCH_SIZE, verbose = 0, shuffle = False, callbacks = [self.tensorboard] if terminal_state else None)
 
          #updating to determin if we weant to update target model
         if terminal_state:
