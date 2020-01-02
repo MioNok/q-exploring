@@ -20,11 +20,11 @@ import pandas as pd
 import random
 
 # TODO Move as a flags?
-#LOAD_MODEL = None
-LOAD_MODEL = "models/128x64x32__36148.23max_23448.90avg_14896.44min__1577897492.model"
+LOAD_MODEL = None
+#LOAD_MODEL = "models/128x64x32__36148.23max_23448.90avg_14896.44min__1577897492.model"
 REPLAY_MEMORY_SIZE = 50000
 MIN_REPLAY_MEMORY_SIZE = 1000
-MODEL_NAME="128x64x32.2"
+MODEL_NAME="128x64x32.x"
 
 MINIBATCH_SIZE = 64
 DISCOUNT = 0.9
@@ -266,15 +266,16 @@ class DQNAgent:
                 new_q = reward
             
             current_qs = current_qs_list[index]
-            #if index == 1:
-            #    print("newq",new_q)
-            #    print("current_qs",current_qs[action],"size",current_qs[action].size)
+            if action > 3:
+                print("Action > 3",action)
             try:
                 current_qs[action] = new_q
             except:
                 print("Index Error" )
-                #print("currentqs:",current_qs[action], type(current_qs[action]))
-                #print("new_q:",current_qs[action],type(new_q))
+                print(current_qs,"current_qs")
+                print(new_q,"new_q")
+                print("action", action)
+                exit()
             
             x.append(current_state)
             y.append(current_qs)

@@ -14,13 +14,13 @@ EPSILON_DECAY = 0.999
 MIN_EPSILON = 0.05
 EPISODES = 2500
 AGGREGATE_STATS_EVERY = 30
-MODEL_NAME="128x64x32.x"
+MODEL_NAME="128x64x32."
 
 
 ##### TF gpu settings.
-config = tf.ConfigProto()
-config.gpu_options.allow_growth = True
-session = tf.Session(config=config)
+#config = tf.ConfigProto()
+#config.gpu_options.allow_growth = True
+#session = tf.Session(config=config)
 
 
 
