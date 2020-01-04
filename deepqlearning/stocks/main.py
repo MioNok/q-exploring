@@ -12,9 +12,11 @@ import tensorflow as tf
 
 EPSILON_DECAY = 0.999
 MIN_EPSILON = 0.05
-EPISODES = 2500
+EPISODES = 5000
 AGGREGATE_STATS_EVERY = 50
 MODEL_NAME="256x256x32.50c"
+STOCK_DATA_FILE = "Dow2010-2019data.csv" #Filename for the data used for training
+TICKER_FILE = "dowtickers.txt"
 
 
 ##### TF gpu settings.
@@ -25,16 +27,14 @@ MODEL_NAME="256x256x32.50c"
 
 
 #Run this
-def main(aphkey,data):
+def main(aphkey,data,preview):
 
-    #TODO fix later.
+    
     #If data is flagged, fetch it, else use the file attached.
-    #if data:
-    #    stockdata = func.fetchdowstockdata(aphkey)
-    #else:
-    #    stockdata = pd.read_csv("Dow2010-2019data.csv")
+    if data:
+        stockdata = func.fetchdowstockdata(aphkey)
 
-    env = models.StockEnv()
+    env = models.StockEnv(STOCK_DATA_FILE, TICKER_FILE, preview)
     agent = models.DQNAgent(env)
 
     # For more repetitive results
@@ -106,20 +106,24 @@ def parseargs():
     #Arguments
     #Must haves
     parser = argparse.ArgumentParser()
-    parser.add_argument("-aph","--aphkey", help= "alphavantage apikey", required = True, type = str)
+    #None
  
     #Optional 
     parser.add_argument("-d","--data",help="fetch data from api", action='store_true')
+    parser.add_argument("-p","--preview",help="preview graphs", action='store_true')
+    parser.add_argument("-aph","--aphkey", help= "alphavantage apikey", type = str)
+    
 
     
     args = parser.parse_args()
     aphkey = args.aphkey
+    preview = args.preview
     data = args.data
 
-    return  aphkey, data
+    return  aphkey, data, preview
     
 
 if __name__ == "__main__":
-    aphkey, data = parseargs()
-    main(aphkey, data)
+    aphkey, data, preview = parseargs()
+    main(aphkey, data, preview)
     
