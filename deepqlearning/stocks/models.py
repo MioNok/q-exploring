@@ -15,6 +15,7 @@ import numpy as np
 import pandasql as ps
 import pandas as pd
 import random
+import os
 import matplotlib.pyplot as plt
 from datetime import datetime
 
@@ -22,16 +23,17 @@ from datetime import datetime
 import functions as func
 
 # TODO Move as a flags?
-LOAD_MODEL = None
-#LOAD_MODEL = "models/128x64x32__36148.23max_23448.90avg_14896.44min__1577897492.model"
-REPLAY_MEMORY_SIZE = 50000
-MIN_REPLAY_MEMORY_SIZE = 1000
-MODEL_NAME="256x256x32.50c"
 
-MINIBATCH_SIZE = 64
-DISCOUNT = 0.9
-UPDATE_TARGET_EVERY = 5
-NUMBER_OF_CANDLES = 50
+#LOAD_MODEL = "models/128x64x32__36148.23max_23448.90avg_14896.44min__1577897492.model"
+#LOAD_MODEL = None
+#REPLAY_MEMORY_SIZE = 50000
+#MIN_REPLAY_MEMORY_SIZE = 1000
+#MODEL_NAME="256x256x32.50c"
+
+#MINIBATCH_SIZE = 64
+#DISCOUNT = 0.9
+#UPDATE_TARGET_EVERY = 5
+#NUMBER_OF_CANDLES = 50
 
 
 
@@ -121,15 +123,16 @@ class Portfolio:
         
 
 class StockEnv:
-    def __init__(self,STOCK_DATA_FILE, TICKER_FILE, preview):
+    def __init__(self,settings, preview):
 
         self.current_portfolio = dict()
         self.buy_n_hold_portfolio = dict()
+        self.settings = settings
 
-        self.amount_of_stocks = pd.read_csv(TICKER_FILE, header = None).transpose()[0].tolist()
+        self.amount_of_stocks = settings["Limit_stocks"]
         self.preview = preview
-        self.stoset , self.normalized_stoset = func.preprocessdata(STOCK_DATA_FILE,TICKER_FILE)
-        self.NUM_CANDLES = NUMBER_OF_CANDLES 
+        self.stoset , self.normalized_stoset = func.preprocessdata(settings["Stock_data_file"],settings["Ticker_file"],settings["Limit_data"])
+        self.NUM_CANDLES = settings["Number_of_candles"] 
         self.ACTION_SPACE_SIZE = 3 #sell = 0, hold = 1, buy = 2
         self.OBSEREVATION_SPACE_VALUES = (self.NUM_CANDLES, 5) # 20 candles, observations for each candle, OHLC + volume.
         self.MAX_STEPS = 2500 #Currentlty the size of our dataset for each stock
@@ -137,7 +140,7 @@ class StockEnv:
 
         self.current_stock = 0 # Training data holds 30 stocks
         self.stock_size = 2500 # default is 2500, but for some stocks there is not that much data available
-    
+        
     
     
     def reset(self):
@@ -152,7 +155,7 @@ class StockEnv:
         return observation
     
     
-    def step(self, action):
+    def step(self, action, episode):
         self.current_step +=1
 
         #Update the stock size
@@ -173,16 +176,13 @@ class StockEnv:
             current_port_sum = self.current_portfolio.portfolio["share"][self.current_stock] * self.current_portfolio.portfolio["currentstockvalue"][self.current_stock] + self.current_portfolio.portfolio["unusedBP"][self.current_stock]
             benchmark_port_sum = self.buy_n_hold_portfolio.portfolio["share"][self.current_stock] * self.buy_n_hold_portfolio.portfolio["currentstockvalue"][self.current_stock] + self.buy_n_hold_portfolio.portfolio["unusedBP"][self.current_stock]
             
-            print(current_port_sum)
-            print(benchmark_port_sum)
-            #print(self.current_portfolio.portfolio)
-            #print(self.buy_n_hold_portfolio.portfolio)
 
             #The final reward is the difference in the gain between the ML algo and the benchmark
             reward = current_port_sum - benchmark_port_sum
 
-            #If preview is set to true, show graph of the performace.
-            if self.preview:
+            #If preview is set to true, save graph of the performace.
+            # Dont save it every round, only if the episode is divisible by Aggregate_stats_every
+            if self.preview and not episode % self.settings["Aggregate_stats_every"]:
                 #Port values.
                 current_port_history = np.array(self.current_portfolio.portfolio["porthistory"][self.current_stock])
                 benchmark_port_history = np.array(self.buy_n_hold_portfolio.portfolio["porthistory"][self.current_stock])
@@ -191,17 +191,30 @@ class StockEnv:
                 timeseries = np.array(self.stoset[self.current_stock].timestamp[50:])
                 dates = np.array([datetime.strptime(day, '%Y-%m-%d') for day in timeseries])
 
-                
+                # Create graphs folder
+                if not os.path.isdir('graphs'):
+                    os.makedirs('graphs')
+                #Plot graphs and show them
                 plt.plot(dates,current_port_history, label = "Reinforced portfolio")
                 plt.plot(dates,benchmark_port_history, label = "Benchmark portfolio")
                 plt.legend(loc="upper left")
-                plt.show(block=False)
-                plt.pause(5)
-                plt.close()
+                
+                #Save graph to folder
+                
+                plt.savefig("graphs/Fig_stock"+str(self.current_stock)+"_"+str(time.time())+".png")
+                #Uncomment to show graphs as they come instead.
+                #plt.show(block=False)
+                #plt.pause(5)
+                #plt.close()
 
             #Stock is finnished, give reward, reset steps and move to next stock
-            self.current_step = 0
-            self.current_stock += 1
+            #Reset the steps and add to stock unless we are at we are at the last stock. Env.reset will reset it
+            #And this last step is needed for the next if statement for us to know if we have reached the end.
+            if self.current_stock != self.amount_of_stocks-1:
+                self.current_step = 0
+                self.current_stock += 1
+  
+        
 
             #Set up the portfolio to accept a new stock
             self.current_portfolio.new_stock()
@@ -210,7 +223,7 @@ class StockEnv:
 
         #Not done untill we reach the finnish
         done = False
-        if self.current_step == self.stock_size-self.NUM_CANDLES-1 and self.current_stock == self.amount_of_stocks:
+        if self.current_step == self.stock_size-self.NUM_CANDLES-1 and self.current_stock == self.amount_of_stocks-1:
             done = True
 
             #Done with the loop, set current stock to 0 for the next one.
@@ -221,7 +234,6 @@ class StockEnv:
     def get_data(self): 
         current_observation = np.array(self.normalized_stoset[self.current_stock].iloc[self.current_step:self.current_step+self.NUM_CANDLES,])
         
-        #next_stock, bool, should we give reward and jump to next stock.
         return current_observation
     
     def get_current_portfolio(self):
@@ -268,28 +280,29 @@ class ModifiedTensorBoard(TensorBoard):
 #From Sentdex
 # Agent class
 class DQNAgent:
-    def __init__(self,env):
+    def __init__(self,env, settings):
         
         #main model gets trained
         self.env = env
+        self.settings = settings
         self.model = self.create_model()
         
         #target model use this for predict
         self.target_model = self.create_model()
         self.target_model.set_weights(self.model.get_weights())
         
-        self.replay_memory = deque(maxlen=REPLAY_MEMORY_SIZE)
+        self.replay_memory = deque(maxlen=settings["Replay_memory_size"] )
         
-        self.tensorboard = ModifiedTensorBoard(log_dir="logs/{}-{}".format(MODEL_NAME, int(time.time())))
+        self.tensorboard = ModifiedTensorBoard(log_dir="logs/{}-{}".format(settings["Model_name"] , int(time.time())))
         self.target_update_counter = 0
         
 
     def create_model(self):
 
-        if  LOAD_MODEL is not None:
-            print("Loading", LOAD_MODEL)
-            model = load_model(LOAD_MODEL)
-            print("Loaded model", LOAD_MODEL)
+        if  self.settings["Load_model"] is not None: 
+            print("Loading", self.settings["Load_model"])
+            model = load_model(self.settings["Load_model"])
+            print("Loaded model", self.settings["Load_model"])
         else:
             model = Sequential()
             model.add(Dense(256, input_shape = self.env.OBSEREVATION_SPACE_VALUES))
@@ -314,10 +327,10 @@ class DQNAgent:
         return self.model.predict(np.array(state).reshape(-1, *state.shape))[0]
     
     def train(self, terminal_state, step):
-        if len(self.replay_memory) < MIN_REPLAY_MEMORY_SIZE:
+        if len(self.replay_memory) < self.settings["Min_replay_memory_size"]:
             return
         
-        minibatch = random.sample(self.replay_memory, MINIBATCH_SIZE)
+        minibatch = random.sample(self.replay_memory, self.settings["Minibatch_size"])
         
         
         current_states = np.array([transition[0] for transition in minibatch])
@@ -332,7 +345,7 @@ class DQNAgent:
         for index, (current_state, action ,reward, new_current_state, done) in enumerate(minibatch):
             if not done:
                 max_future_q = np.max(future_qs_list[index])
-                new_q = reward + DISCOUNT * max_future_q
+                new_q = reward + self.settings["Discount"] * max_future_q
             else:
                 new_q = reward
             
@@ -343,12 +356,12 @@ class DQNAgent:
             x.append(current_state)
             y.append(current_qs)
         
-        self.model.fit(np.array(x), np.array(y), batch_size = MINIBATCH_SIZE, verbose = 0, shuffle = False, callbacks = [self.tensorboard] if terminal_state else None)
+        self.model.fit(np.array(x), np.array(y), batch_size = self.settings["Minibatch_size"], verbose = 0, shuffle = False, callbacks = [self.tensorboard] if terminal_state else None)
 
          #updating to determin if we weant to update target model
         if terminal_state:
             self.target_update_counter +=1
             
-        if self.target_update_counter > UPDATE_TARGET_EVERY:
+        if self.target_update_counter > self.settings["Update_target_every"]:
             self.target_model.set_weights(self.model.get_weights())
             self.target_update_counter = 0

@@ -9,14 +9,46 @@ import time
 import numpy as np
 import random
 import tensorflow as tf
+import functions as func
 
+#Input Constants.
+START_EPSILON = 1
 EPSILON_DECAY = 0.999
 MIN_EPSILON = 0.05
 EPISODES = 5000
 AGGREGATE_STATS_EVERY = 50
 MODEL_NAME="256x256x32.50c"
 STOCK_DATA_FILE = "Dow2010-2019data.csv" #Filename for the data used for training
-TICKER_FILE = "dowtickers.txt"
+TICKER_FILE = "dowtickers.txt" #Filename for the symbols/tickers
+
+LOAD_MODEL = None # Load existing model?
+REPLAY_MEMORY_SIZE = 50000
+MIN_REPLAY_MEMORY_SIZE = 1000
+MODEL_NAME="256x256x32.50c"
+
+MINIBATCH_SIZE = 64
+DISCOUNT = 0.9
+UPDATE_TARGET_EVERY = 5
+NUMBER_OF_CANDLES = 50
+
+#Reduce these to reduce the data trained on.
+LIMIT_DATA = 2500 # there is about 2500 datapoints for each stock.
+LIMIT_STOCKS = 30 #There is 30 data for 30 stocks.
+
+
+settings = {"Model_name": MODEL_NAME,
+            "Stock_data_file": STOCK_DATA_FILE,
+            "Ticker_file": TICKER_FILE,
+            "Load_model": LOAD_MODEL,
+            "Replay_memory_size": REPLAY_MEMORY_SIZE,
+            "Min_replay_memory_size": MIN_REPLAY_MEMORY_SIZE,
+            "Minibatch_size": MINIBATCH_SIZE,
+            "Discount": DISCOUNT,
+            "Update_target_every":UPDATE_TARGET_EVERY,
+            "Number_of_candles":NUMBER_OF_CANDLES,
+            "Aggregate_stats_every":AGGREGATE_STATS_EVERY,
+            "Limit_data": LIMIT_DATA,
+            "Limit_stocks":LIMIT_STOCKS}
 
 
 ##### TF gpu settings.
@@ -29,13 +61,12 @@ TICKER_FILE = "dowtickers.txt"
 #Run this
 def main(aphkey,data,preview):
 
-    
     #If data is flagged, fetch it, else use the file attached.
     if data:
         stockdata = func.fetchdowstockdata(aphkey)
 
-    env = models.StockEnv(STOCK_DATA_FILE, TICKER_FILE, preview)
-    agent = models.DQNAgent(env)
+    env = models.StockEnv(settings, preview)
+    agent = models.DQNAgent(env,settings)
 
     # For more repetitive results
     random.seed(1)
@@ -49,7 +80,7 @@ def main(aphkey,data,preview):
         os.makedirs('models')
 
 
-    epsilon = 1
+    epsilon = START_EPSILON
     for episode in tqdm(range(1, EPISODES+1), ascii = True, unit= "episodes"):
         
         agent.tensorboard.step = episode
@@ -67,7 +98,7 @@ def main(aphkey,data,preview):
             else:
                 action = np.random.randint(0, env.ACTION_SPACE_SIZE)
 
-            new_state, reward , done = env.step(action)
+            new_state, reward , done = env.step(action, episode)
     
             episode_reward += reward
         
@@ -110,15 +141,26 @@ def parseargs():
  
     #Optional 
     parser.add_argument("-d","--data",help="fetch data from api", action='store_true')
+    #parser.add_argument("-limd","--limit_data",help="limit the amount of data per stock ", type = int)
+    #parser.add_argument("-lims","--limit_stocks",help="limit the amount of stocks, 0-30 for dow stocks. ", type = int) #Maybe later.
     parser.add_argument("-p","--preview",help="preview graphs", action='store_true')
+    parser.add_argument("-g","--gpu",help="Enable gpu settings", action='store_true')
     parser.add_argument("-aph","--aphkey", help= "alphavantage apikey", type = str)
     
 
     
     args = parser.parse_args()
     aphkey = args.aphkey
+    gpu = args.gpu
     preview = args.preview
     data = args.data
+
+
+    ##### TF gpu settings.
+    if gpu:
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True
+        session = tf.Session(config=config)
 
     return  aphkey, data, preview
     

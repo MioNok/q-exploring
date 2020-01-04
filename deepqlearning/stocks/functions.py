@@ -25,7 +25,7 @@ def fetchdowstockdata(aphkey): # perhaps add apikey as a flag, returns the data 
 
     return stockdata
 
-def preprocessdata(datafilename,tickerstxt):
+def preprocessdata(datafilename,tickerstxt,limit):
     
     #The data
     stoset_raw = pd.read_csv(datafilename)
@@ -36,7 +36,7 @@ def preprocessdata(datafilename,tickerstxt):
     
     progress_counter = 1
     for symbol in symbols:
-        query = "SELECT timestamp, open, high, low, adjusted_close, volume FROM stoset_raw WHERE ticker = '"+symbol+"' LIMIT 2500"
+        query = "SELECT timestamp, open, high, low, adjusted_close, volume FROM stoset_raw WHERE ticker = '"+symbol+"' LIMIT "+ str(limit)
         #query dataframe and reverse it so that the older data is first
         stoset = ps.sqldf(query).iloc[::-1] 
         
