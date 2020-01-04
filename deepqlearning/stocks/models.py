@@ -212,6 +212,9 @@ class StockEnv:
         done = False
         if self.current_step == self.stock_size-self.NUM_CANDLES-1 and self.current_stock == self.amount_of_stocks:
             done = True
+
+            #Done with the loop, set current stock to 0 for the next one.
+            self.current_stock = 0
         
         return next_observation, reward, done
     
