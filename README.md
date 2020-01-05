@@ -1,5 +1,9 @@
-# Q-exploring
-Exploring Q-learning and Deep Q-learning
+# Q-stock-exploring
+Exploring Deep Q-learning. Can you predict future stock price movements using Deep Q-learning to more effectively manage your portfolio? Let's find out.
 
-Just a repo that contains snippets of my journey to mastering reinforcement learning.
-praise sentdex
+Code is at an experimental phase.
+
+Repo that contains snippets of my journey to mastering reinforcement learning.
+Some documentation is to come.
+
+Kudos to Sentdex, much of this is inspired by hes previous work. www.pythonprogramming.net
