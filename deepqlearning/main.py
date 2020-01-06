@@ -24,13 +24,14 @@ LOAD_MODEL = None #"models/256x256x32.30c__5935.82max_-801.65avg_-7387.53min__15
 REPLAY_MEMORY_SIZE = 50000
 MIN_REPLAY_MEMORY_SIZE = 1000
 MODEL_NAME="256x256x32.50c"
+MODEL_TYPE ="MLP" #Currently MPL(Fully connected) or LSTM or CNN"
 
 MINIBATCH_SIZE = 64
 DISCOUNT = 0.9
 UPDATE_TARGET_EVERY = 5
 
 #How many candles should the prediction be made on?
-NUMBER_OF_CANDLES = 50
+NUMBER_OF_CANDLES = 20
 
 #Reduce these to reduce the data trained on.
 LIMIT_DATA = 150 # there is about 2500 datapoints for each stock.
@@ -49,15 +50,17 @@ settings = {"Model_name": MODEL_NAME,
             "Number_of_candles":NUMBER_OF_CANDLES,
             "Aggregate_stats_every":AGGREGATE_STATS_EVERY,
             "Limit_data": LIMIT_DATA,
-            "Limit_stocks":LIMIT_STOCKS}
+            "Limit_stocks":LIMIT_STOCKS,
+            "Model_type":MODEL_TYPE}
 
 
 #Run this
 def main(aphkey,data,preview):
 
-    #If data is flagged, fetch it, else use the file attached.
+    #If data is flagged, fetch it, else use the file attached. Currenttly not really in use.
     if data:
-        stockdata = func.fetchdowstockdata(aphkey)
+        func.fetchstockdata(aphkey,False,None)
+        exit()
 
     env = models.StockEnv(settings, preview)
     agent = models.DQNAgent(env,settings)
@@ -116,7 +119,7 @@ def main(aphkey,data,preview):
 
             # Save model, but only when min reward is greater or equal a set value
             #if min_reward >= MIN_REWARD:
-            agent.model.save(f'models/{MODEL_NAME}__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}ep_{episode}.model')
+            agent.model.save(f'models/{MODEL_NAME}__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}ep_{episode}mod_{settings["Model_type"]}.model')
 
         # Decay epsilon
         if epsilon > MIN_EPSILON:

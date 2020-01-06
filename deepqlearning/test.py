@@ -1,13 +1,16 @@
 import numpy as np
 import models
 import random
+import argparse
+import functions as func
 
 from keras.models import load_model
 
 
 #Model to test on:
-LOAD_MODEL = "models/256x256x32.50c__-580.88max_-2751.33avg_-5372.70min__1578261570ep_25.model" # Load existing model?. Insert path.
+LOAD_MODEL = "models/256x256x32.30c__4823.80max_-3815.89avg_-10703.61min__1578323878.model" # Load existing model?. Insert path.
 MODEL_NAME="Test"
+MODEL_TYPE="MLP"
 #Input Constants.
 AGGREGATE_STATS_EVERY = 1
 STOCK_DATA_FILE = "Dow2010-2019data.csv" #Filename for the data used for training
@@ -30,10 +33,18 @@ settings = {"Model_name": MODEL_NAME,
             "Replay_memory_size": REPLAY_MEMORY_SIZE,
             "Aggregate_stats_every":AGGREGATE_STATS_EVERY,
             "Limit_data": LIMIT_DATA,
-            "Limit_stocks":LIMIT_STOCKS}
+            "Limit_stocks":LIMIT_STOCKS,
+            "Model_type":MODEL_TYPE}
 
 
-def main():
+def main(stock, aphkey):
+
+    if stock != None:
+        settings["Stock_data_file"] = "testdata/testdata.csv"
+        settings["Ticker_file"] = "testdata/testticker.txt"
+        func.fetchstockdata(aphkey,True,stock)
+
+
 
     #Make stock env.
     env = models.StockEnv(settings, True)
@@ -62,6 +73,29 @@ def main():
 
     print("Exiting.")
 
-main()
+#main()
 
 #TODO: Search for any stock and predict on that.
+def parseargs():
+    parser = argparse.ArgumentParser()
+
+
+    #Arguments
+    #Must haves
+    parser = argparse.ArgumentParser()
+    #None
+ 
+    #Optional
+    parser.add_argument("-s","--stock", help= "Stock ticker", type = str)
+    parser.add_argument("-aph","--aphkey", help= "alphavantage apikey", type = str)
+    
+    args = parser.parse_args()
+    aphkey = args.aphkey
+    stock = args.stock
+
+    return  stock, aphkey
+    
+
+if __name__ == "__main__":
+    stock, aphkey = parseargs()
+    main(stock, aphkey)

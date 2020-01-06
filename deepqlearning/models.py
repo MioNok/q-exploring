@@ -4,7 +4,7 @@ from tensorflow.python.keras import backend
 from tensorflow.keras import backend
 import tensorflow as tf
 from keras.models import Sequential, load_model
-from keras.layers import Dense, Dropout, Activation, Flatten
+from keras.layers import Dense, Dropout, Activation, Flatten, LSTM, CuDNNLSTM, BatchNormalization, MaxPooling2D, Conv2D
 from keras.callbacks import TensorBoard
 from keras.optimizers import Adam
 
@@ -120,6 +120,7 @@ class StockEnv:
                                                                    settings["Ticker_file"],
                                                                    settings["Limit_data"], 
                                                                    settings["Limit_stocks"])
+        
         self.NUM_CANDLES = settings["Number_of_candles"] 
         self.ACTION_SPACE_SIZE = 3 #sell = 0, hold = 1, buy = 2
         self.OBSEREVATION_SPACE_VALUES = (self.NUM_CANDLES, 5) # 20 candles, observations for each candle, OHLC + volume.
@@ -192,7 +193,7 @@ class StockEnv:
                 
                 #Save graph to folder
                 
-                plt.savefig("graphs/Fig_stock"+str(self.current_stock)+"_ep"+str(episode)+".png")
+                plt.savefig("graphs/Fig_stock"+str(self.current_stock)+"_ep"+str(episode)+"_type"+self.settings["Model_type"]+".png")
                 #Uncomment to show graphs as they come instead.
                 #plt.show(block=False)
                 #plt.pause(5)
@@ -231,7 +232,13 @@ class StockEnv:
 
         #Normalize the observation
         normalized_observation =(current_observation_no_timestamp-current_observation_no_timestamp.min())/(current_observation_no_timestamp.max()-current_observation_no_timestamp.min())
-
+        
+        #Reshape data to fit CNN.
+        if self.settings["Model_type"] =="CNN":
+            #CNN..
+            normalized_observation = np.asarray(normalized_observation)
+            
+            normalized_observation = normalized_observation.reshape(self.settings["Number_of_candles"],5,1)
         return np.array(normalized_observation)
 
     
@@ -303,19 +310,62 @@ class DQNAgent:
             model = load_model(self.settings["Load_model"])
             print("Loaded model", self.settings["Load_model"])
         else:
-            model = Sequential()
-            model.add(Dense(256, input_shape = self.env.OBSEREVATION_SPACE_VALUES))
-            model.add(Activation("relu"))
-            model.add(Dropout(0.2))
+            if self.settings["Model_type"] == "MLP":
+                model = Sequential()
+                model.add(Dense(256, input_shape = self.env.OBSEREVATION_SPACE_VALUES))
+                model.add(Activation("relu"))
+                model.add(Dropout(0.2))
             
-            model.add(Dense(256))
-            model.add(Activation("relu"))
-            model.add(Dropout(0.2))
+                model.add(Dense(256))
+                model.add(Activation("relu"))
+                model.add(Dropout(0.2))
 
-            model.add(Flatten())
-            model.add(Dense(32))
-            model.add(Dense(self.env.ACTION_SPACE_SIZE, activation = "linear"))
-            model.compile(loss = "mse", optimizer = Adam(lr=0.001), metrics=["accuracy"])
+                model.add(Flatten())
+                model.add(Dense(32))
+                model.add(Dense(self.env.ACTION_SPACE_SIZE, activation = "linear"))
+                model.compile(loss = "mse", optimizer = Adam(lr=0.001), metrics=["accuracy"])
+
+            elif self.settings["Model_type"] == "LSTM":
+                model = Sequential()
+                model.add(LSTM(128, input_shape=self.env.OBSEREVATION_SPACE_VALUES, return_sequences=True, activation='relu'))#CuDNNLSTM
+                model.add(Dropout(0.2))
+                model.add(BatchNormalization()) 
+
+                model.add(LSTM(128, return_sequences=True, activation='relu'))#CuDNNLSTM, no activation
+                model.add(Dropout(0.2))
+                model.add(BatchNormalization())
+
+                model.add(LSTM(128, activation='relu'))#CuDNNLSTM, no activation
+                model.add(Dropout(0.2))
+                model.add(BatchNormalization())
+
+                model.add(Dense(32, activation='relu'))
+                model.add(Dropout(0.2))
+
+                model.add(Dense(self.env.ACTION_SPACE_SIZE, activation='softmax'))
+                model.compile(loss='sparse_categorical_crossentropy', optimizer= Adam(lr=0.001), metrics=['accuracy'])
+
+            elif self.settings["Model_type"] == "CNN":
+                model = Sequential()
+                model.add(Conv2D(256,(3,3), input_shape=(self.settings["Number_of_candles"],5,1), activation='relu'))
+                model.add(MaxPooling2D(pool_size=(2, 2)))
+                model.add(Dropout(0.2))
+
+                #model.add(Conv2D(256,(3,3), activation='relu'))
+                #model.add(MaxPooling2D(pool_size=(2, 2)))
+                #model.add(Dropout(0.2))
+
+                model.add(Flatten())
+                model.add(Dense(32, activation='relu'))
+                model.add(Dropout(0.2))
+
+                model.add(Dense(self.env.ACTION_SPACE_SIZE, activation='softmax'))
+                model.compile(loss='mse', optimizer= Adam(lr=0.001), metrics=['accuracy'])
+
+            else:
+                print("Unknown model")
+                exit()
+
         return model
     
     def update_replay_memory(self,transition):
@@ -358,8 +408,15 @@ class DQNAgent:
             x.append(current_state)
             y.append(current_qs)
         
-        self.model.fit(np.array(x), np.array(y), batch_size = self.settings["Minibatch_size"], verbose = 0, shuffle = False, callbacks = [self.tensorboard] if terminal_state else None)
 
+        if self.settings["Model_type"] == "LSTM":
+            y_new = []
+            for row in y:
+                y_new.append(np.argmax(row))
+            y = np.array(y_new).reshape(64,1)
+        
+        self.model.fit(np.array(x), np.array(y), batch_size = self.settings["Minibatch_size"], verbose = 0, shuffle = False, callbacks = [self.tensorboard] if terminal_state else None)
+        
          #updating to determin if we weant to update target model
         if terminal_state:
             self.target_update_counter +=1
