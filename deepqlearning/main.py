@@ -17,8 +17,8 @@ MIN_EPSILON = 0.05
 EPISODES = 5000
 AGGREGATE_STATS_EVERY = 25
 MODEL_NAME="256x256x32.20c"
-STOCK_DATA_FILE = "Dow2010-2019data.csv" #Filename for the data used for training
-TICKER_FILE = "dowtickers.txt" #Filename for the symbols/tickers
+STOCK_DATA_FILE = "data/Dow2010-2019data.csv" #Filename for the data used for training
+TICKER_FILE = "data/dowtickers.txt" #Filename for the symbols/tickers
 
 LOAD_MODEL = None #"models/256x256x32.30c__5935.82max_-801.65avg_-7387.53min__1578257594.model" # Load existing model?. Insert path.
 REPLAY_MEMORY_SIZE = 50000

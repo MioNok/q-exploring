@@ -5,6 +5,7 @@ import argparse
 import functions as func
 
 from keras.models import load_model
+from keras.optimizers import Adam
 
 
 #Model to test on:
@@ -13,8 +14,8 @@ MODEL_NAME="Test"
 MODEL_TYPE="MLP"
 #Input Constants.
 AGGREGATE_STATS_EVERY = 1
-STOCK_DATA_FILE = "Dow2010-2019data.csv" #Filename for the data used for training
-TICKER_FILE = "dowtickers.txt" #Filename for the symbols/tickers
+STOCK_DATA_FILE = "data/Dow2010-2019data.csv" #Filename for the data used for training
+TICKER_FILE = "data/dowtickers.txt" #Filename for the symbols/tickers
 
 #Reduce these to reduce the data trained on.
 LIMIT_DATA = 2500 # there is about 2500 datapoints(days) for each stock.

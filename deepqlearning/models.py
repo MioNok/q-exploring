@@ -25,7 +25,7 @@ import functions as func
 
 class Portfolio:
     def __init__(self):
-        self.portfolio = {"ticker":["TBA"], #Ticker is not used but here.
+        self.portfolio = {"ticker":["TBA"], #Ticker is not used but here for the future.
                           "share": [0],
                           "currentstockvalue": [1],
                           "unusedBP": [10000],
@@ -83,7 +83,6 @@ class Portfolio:
                 #Buy as much as possible everything
                 
                 #Amount of shares bought * price bought at, set current shares held to 0
-                
                 amount_of_shares_bought = int(self.portfolio["unusedBP"][current_stock]/close_value)
                 self.portfolio["share"][current_stock] = amount_of_shares_bought
                 

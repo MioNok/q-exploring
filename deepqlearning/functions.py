@@ -11,7 +11,7 @@ def fetchstockdata(aphkey,test,ticker): # perhaps add apikey as a flag, returns 
     #If we are not running the test script
     if not test:
         #Read data from file. Transpose it, then to series and lastly to list.
-        symbols = pd.read_csv("dowtickers.txt", header = None).transpose()[0].tolist()
+        symbols = pd.read_csv("data/dowtickers.txt", header = None).transpose()[0].tolist()
 
         #Fetch data from api
         stockdata = pd.DataFrame()
@@ -22,8 +22,12 @@ def fetchstockdata(aphkey,test,ticker): # perhaps add apikey as a flag, returns 
             time.sleep(12) # Sleep because of the ratelimit on alphavantage
             print("fetched", symbol)
 
+        # Create testdata folder
+        if not os.path.isdir('data'):
+            os.makedirs('data')
+
         #Save data       
-        stockdata.to_csv("Dow2010-2019AdjustedData.csv",index = None, header = True)
+        stockdata.to_csv("data/Dow2010-2019AdjustedData.csv",index = None, header = True)
      
     else:
         #Fetch data from api
