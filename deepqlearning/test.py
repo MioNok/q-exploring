@@ -63,3 +63,5 @@ def main():
     print("Exiting.")
 
 main()
+
+#TODO: Search for any stock and predict on that.

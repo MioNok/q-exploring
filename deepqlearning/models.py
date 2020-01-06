@@ -182,7 +182,10 @@ class StockEnv:
                 # Create graphs folder
                 if not os.path.isdir('graphs'):
                     os.makedirs('graphs')
+
+
                 #Plot graphs and show them
+                plt.figure(figsize=(20,10))
                 plt.plot(dates,current_port_history, label = "Reinforced portfolio")
                 plt.plot(dates,benchmark_port_history, label = "Benchmark portfolio")
                 plt.legend(loc="upper left")
@@ -193,7 +196,7 @@ class StockEnv:
                 #Uncomment to show graphs as they come instead.
                 #plt.show(block=False)
                 #plt.pause(5)
-                #plt.close()
+                plt.close()
 
             #Stock is finnished, give reward, reset steps and move to next stock
             #Reset the steps and add to stock unless we are at we are at the last stock. Env.reset will reset it
@@ -219,10 +222,18 @@ class StockEnv:
         
         return next_observation, reward, done
     
-    def get_data(self): 
-        current_observation = np.array(self.normalized_stoset[self.current_stock].iloc[self.current_step:self.current_step+self.NUM_CANDLES,])
-        
-        return current_observation
+    def get_data(self):
+        #Get the data 
+        current_observation = self.stoset[self.current_stock].iloc[self.current_step:self.current_step+self.NUM_CANDLES,] 
+    
+        #Remove the timestamp
+        current_observation_no_timestamp = current_observation.iloc[:,1:6]
+
+        #Normalize the observation
+        normalized_observation =(current_observation_no_timestamp-current_observation_no_timestamp.min())/(current_observation_no_timestamp.max()-current_observation_no_timestamp.min())
+
+        return np.array(normalized_observation)
+
     
     def get_current_portfolio(self):
         

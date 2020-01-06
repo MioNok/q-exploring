@@ -28,7 +28,9 @@ MODEL_NAME="256x256x32.50c"
 MINIBATCH_SIZE = 64
 DISCOUNT = 0.9
 UPDATE_TARGET_EVERY = 5
-NUMBER_OF_CANDLES = 20
+
+#How many candles should the prediction be made on?
+NUMBER_OF_CANDLES = 50
 
 #Reduce these to reduce the data trained on.
 LIMIT_DATA = 150 # there is about 2500 datapoints for each stock.
@@ -48,13 +50,6 @@ settings = {"Model_name": MODEL_NAME,
             "Aggregate_stats_every":AGGREGATE_STATS_EVERY,
             "Limit_data": LIMIT_DATA,
             "Limit_stocks":LIMIT_STOCKS}
-
-
-##### TF gpu settings.
-#config = tf.ConfigProto()
-#config.gpu_options.allow_growth = True
-#session = tf.Session(config=config)
-
 
 
 #Run this
