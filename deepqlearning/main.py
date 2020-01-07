@@ -18,7 +18,7 @@ EPISODES = 5000
 AGGREGATE_STATS_EVERY = 25
 MODEL_NAME="256x256x32.20c"
 STOCK_DATA_FILE = "data/Dow2010-2019data.csv" #Filename for the data used for training
-TICKER_FILE = "data/dowtickers.txt" #Filename for the symbols/tickers
+TICKER_FILE = "data/SP100tickers.txt" #Filename for the symbols/tickers
 
 LOAD_MODEL = None #"models/256x256x32.30c__5935.82max_-801.65avg_-7387.53min__1578257594.model" # Load existing model?. Insert path.
 REPLAY_MEMORY_SIZE = 50000
@@ -59,7 +59,7 @@ def main(aphkey,data,preview):
 
     #If data is flagged, fetch it, else use the file attached. Currenttly not really in use.
     if data:
-        func.fetchstockdata(aphkey,False,None)
+        func.fetchstockdata(aphkey,False,None,settings["Ticker_file"])
         exit()
 
     env = models.StockEnv(settings, preview)
