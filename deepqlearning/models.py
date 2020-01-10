@@ -30,19 +30,20 @@ class Portfolio:
                           "currentstockvalue": [1],
                           "unusedBP": [10000],
                           "porthistory": [[10000]]}
-        
-    def action(self,action,current_step,stockdata,NUM_CANDLES,current_stock):
-        
+    #Current stock can be quickly switched an number if we want to run multiple stock in the same episode.
+    #Currently current stock is always 0 since we reset portfolios after each stock.
+    def action(self,action,current_step,stockdata,NUM_CANDLES,current_stock=0):
+       
         if action == 0: #sell
             current_observation = stockdata.iloc[current_step:current_step+NUM_CANDLES,]
-            
+           
             #Close value of the stock for the current observation
             close_value = current_observation.close.iloc[-1]
-            
+           
             #check if we have shares.
             if self.portfolio["share"][current_stock] > 0:
                 #sell everything
-                
+               
                 #Amount of shares held * price sold at, set current shares held to 0
                 amount_to_be_credited = self.portfolio["share"][current_stock]*close_value
                 self.portfolio["share"][current_stock] = 0
@@ -139,6 +140,12 @@ class StockEnv:
         #first observation
         self.current_step = 0
         observation = self.get_data()
+
+        #Pick one stock at random
+        self.current_stock = np.random.randint(0,self.settings["Limit_stocks"])
+
+        #Update the stock size
+        self.stock_size = self.stoset[self.current_stock].shape[0]
         
         return observation
     
@@ -146,34 +153,35 @@ class StockEnv:
     def step(self, action, episode):
         self.current_step +=1
 
-        #Update the stock size
-        self.stock_size = self.stoset[self.current_stock].shape[0]
+        #self.stock_size = self.stoset[self.current_stock].shape[0]
 
         #update current_portfolio
-        self.current_portfolio.action(action, self.current_step, self.stoset[self.current_stock], self.NUM_CANDLES, self.current_stock)
+        self.current_portfolio.action(action, self.current_step, self.stoset[self.current_stock], self.NUM_CANDLES, 0)
 
         #The Benchmark
         #update buy and hold portfolio. It always buys an then holds untill the next stock.
-        self.buy_n_hold_portfolio.action(2, self.current_step, self.stoset[self.current_stock], self.NUM_CANDLES, self.current_stock)
+        self.buy_n_hold_portfolio.action(2, self.current_step, self.stoset[self.current_stock], self.NUM_CANDLES, 0)
 
         next_observation = self.get_data()
         
         #Check the reward. The value of the portfolio is equal to the size of the reward.
         reward = 0
         if self.current_step == self.stock_size-self.NUM_CANDLES-1:
-            current_port_sum = self.current_portfolio.portfolio["share"][self.current_stock] * self.current_portfolio.portfolio["currentstockvalue"][self.current_stock] + self.current_portfolio.portfolio["unusedBP"][self.current_stock]
-            benchmark_port_sum = self.buy_n_hold_portfolio.portfolio["share"][self.current_stock] * self.buy_n_hold_portfolio.portfolio["currentstockvalue"][self.current_stock] + self.buy_n_hold_portfolio.portfolio["unusedBP"][self.current_stock]
+            current_port_sum = self.current_portfolio.portfolio["share"][0] * self.current_portfolio.portfolio["currentstockvalue"][0] + self.current_portfolio.portfolio["unusedBP"][0]#Switch 0 to self.current_stock if training on multiple stock in one episode.
+            benchmark_port_sum = self.buy_n_hold_portfolio.portfolio["share"][0] * self.buy_n_hold_portfolio.portfolio["currentstockvalue"][0] + self.buy_n_hold_portfolio.portfolio["unusedBP"][0]#Switch 0 to self.current_stock if training on multiple stock in one episode.
             
 
             #The final reward is the difference in the gain between the ML algo and the benchmark
-            reward = current_port_sum - benchmark_port_sum
+            #Calculate percentage difference
+            difference = current_port_sum - benchmark_port_sum
+            reward = (difference / benchmark_port_sum) *100
 
             #If preview is set to true, save graph of the performace.
             # Dont save it every round, only if the episode is divisible by Aggregate_stats_every
             if self.preview and not episode % self.settings["Aggregate_stats_every"]:
                 #Port values.
-                current_port_history = np.array(self.current_portfolio.portfolio["porthistory"][self.current_stock])
-                benchmark_port_history = np.array(self.buy_n_hold_portfolio.portfolio["porthistory"][self.current_stock])
+                current_port_history = np.array(self.current_portfolio.portfolio["porthistory"][0])#Switch 0 to self.current_stock if training on multiple stock in one episode.
+                benchmark_port_history = np.array(self.buy_n_hold_portfolio.portfolio["porthistory"][0])#Switch 0 to self.current_stock if training on multiple stock in one episode.
                 
                 #Dates to graphs, ignore the first 50 since they are also ignored in the porthistory.
                 timeseries = np.array(self.stoset[self.current_stock].timestamp[self.NUM_CANDLES:])
@@ -191,7 +199,6 @@ class StockEnv:
                 plt.legend(loc="upper left")
                 
                 #Save graph to folder
-                
                 plt.savefig("graphs/Fig_stock"+str(self.current_stock)+"_ep"+str(episode)+"_type"+self.settings["Model_type"]+".png")
                 #Uncomment to show graphs as they come instead.
                 #plt.show(block=False)
@@ -201,24 +208,21 @@ class StockEnv:
             #Stock is finnished, give reward, reset steps and move to next stock
             #Reset the steps and add to stock unless we are at we are at the last stock. Env.reset will reset it
             #And this last step is needed for the next if statement for us to know if we have reached the end.
-            if self.current_stock != self.amount_of_stocks-1:
-                self.current_step = 0
-                self.current_stock += 1
+            #if self.current_stock != self.amount_of_stocks-1:
+            #    self.current_step = 0
+            #    self.current_stock += 1
   
         
 
-            #Set up the portfolio to accept a new stock
-            self.current_portfolio.new_stock()
-            self.buy_n_hold_portfolio.new_stock()
+            #Set up the portfolio to accept a new stock if we loop trough multiple stocks.
+            #self.current_portfolio.new_stock()
+            #self.buy_n_hold_portfolio.new_stock()
 
 
         #Not done untill we reach the finnish
         done = False
-        if self.current_step == self.stock_size-self.NUM_CANDLES-1 and self.current_stock == self.amount_of_stocks-1:
+        if self.current_step == self.stock_size-self.NUM_CANDLES-1:
             done = True
-
-            #Done with the loop, set current stock to 0 for the next one.
-            self.current_stock = 0
         
         return next_observation, reward, done
     
@@ -298,7 +302,7 @@ class DQNAgent:
         
         self.replay_memory = deque(maxlen=settings["Replay_memory_size"] )
         
-        self.tensorboard = ModifiedTensorBoard(log_dir="logs/{}-{}".format(settings["Model_name"] , int(time.time())))
+        self.tensorboard = ModifiedTensorBoard(log_dir=f'logs/{settings["Model_name"]}__{int(time.time())}mod_{settings["Model_type"]}')
         self.target_update_counter = 0
         
 
@@ -326,15 +330,15 @@ class DQNAgent:
 
             elif self.settings["Model_type"] == "LSTM":
                 model = Sequential()
-                model.add(LSTM(128, input_shape=self.env.OBSEREVATION_SPACE_VALUES, return_sequences=True, activation='relu'))#CuDNNLSTM
+                model.add(CuDNNLSTM(128, input_shape=self.env.OBSEREVATION_SPACE_VALUES, return_sequences=True))#CuDNNLSTM
                 model.add(Dropout(0.2))
                 model.add(BatchNormalization()) 
 
-                model.add(LSTM(128, return_sequences=True, activation='relu'))#CuDNNLSTM, no activation
+                model.add( CuDNNLSTM(128, return_sequences=True))#CuDNNLSTM, no activation
                 model.add(Dropout(0.2))
                 model.add(BatchNormalization())
 
-                model.add(LSTM(128, activation='relu'))#CuDNNLSTM, no activation
+                model.add(CuDNNLSTM(128))#CuDNNLSTM, no activation
                 model.add(Dropout(0.2))
                 model.add(BatchNormalization())
 
@@ -346,16 +350,16 @@ class DQNAgent:
 
             elif self.settings["Model_type"] == "CNN":
                 model = Sequential()
-                model.add(Conv2D(256,(3,3), input_shape=(self.settings["Number_of_candles"],5,1), activation='relu'))
+                model.add(Conv2D(256,(2,2), input_shape=(self.settings["Number_of_candles"],5,1), activation='relu'))
                 model.add(MaxPooling2D(pool_size=(2, 2)))
                 model.add(Dropout(0.2))
 
-                #model.add(Conv2D(256,(3,3), activation='relu'))
-                #model.add(MaxPooling2D(pool_size=(2, 2)))
-                #model.add(Dropout(0.2))
+                model.add(Conv2D(256,(2,2), activation='relu'))
+                model.add(BatchNormalization())
+                model.add(Dropout(0.2))
 
                 model.add(Flatten())
-                model.add(Dense(32, activation='relu'))
+                model.add(Dense(128, activation='relu'))
                 model.add(Dropout(0.2))
 
                 model.add(Dense(self.env.ACTION_SPACE_SIZE, activation='softmax'))
@@ -412,7 +416,7 @@ class DQNAgent:
             y_new = []
             for row in y:
                 y_new.append(np.argmax(row))
-            y = np.array(y_new).reshape(64,1)
+            y = np.array(y_new).reshape(self.settings["Minibatch_size"],1)
         
         self.model.fit(np.array(x), np.array(y), batch_size = self.settings["Minibatch_size"], verbose = 0, shuffle = False, callbacks = [self.tensorboard] if terminal_state else None)
         

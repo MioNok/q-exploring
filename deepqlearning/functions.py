@@ -58,7 +58,7 @@ def preprocessdata(datafilename,tickerstxt,limit, stocklimit ):
     
     #Read tickers, turn to list, an limit acording to stocklimit
     symbols = pd.read_csv(tickerstxt, header = None).transpose()[0].tolist()[0:stocklimit]
-    
+    print(symbols)
     stockdata = [] # Un normalized data for keeping track of stock prices
     normalized_stockdata = [] # Normalized data for training
     
@@ -84,6 +84,7 @@ def preprocessdata(datafilename,tickerstxt,limit, stocklimit ):
         
         #Helpful profgress counter.
         print("Preprocessing stocks from data",progress_counter,"/",len(symbols))
+        #print("shape",stoset.shape)
         progress_counter += 1
         
     return stockdata, normalized_stockdata

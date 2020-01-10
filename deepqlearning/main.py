@@ -11,31 +11,30 @@ import random
 import tensorflow as tf
 
 #Input Constants.
-START_EPSILON = 1
-EPSILON_DECAY = 0.999
-MIN_EPSILON = 0.05
-EPISODES = 5000
-AGGREGATE_STATS_EVERY = 25
-MODEL_NAME="256x256x32.20c"
-STOCK_DATA_FILE = "data/Dow2010-2019data.csv" #Filename for the data used for training
+START_EPSILON = 0.5
+EPSILON_DECAY = 0.9998
+MIN_EPSILON = 0.04
+EPISODES = 20000
+AGGREGATE_STATS_EVERY = 50
+STOCK_DATA_FILE = "data/SP100_2015-2019data.csv" #Filename for the data used for training
 TICKER_FILE = "data/SP100tickers.txt" #Filename for the symbols/tickers
 
-LOAD_MODEL = None #"models/256x256x32.30c__5935.82max_-801.65avg_-7387.53min__1578257594.model" # Load existing model?. Insert path.
+LOAD_MODEL = "models/256x256x128.50c____38.14max___-7.29avg__-29.26min__1578599159ep_4150mod_CNN.model" # Load existing model?. Insert path.
 REPLAY_MEMORY_SIZE = 50000
 MIN_REPLAY_MEMORY_SIZE = 1000
-MODEL_NAME="256x256x32.50c"
-MODEL_TYPE ="MLP" #Currently MPL(Fully connected) or LSTM or CNN"
+MODEL_NAME="256x256x128.50c"
+MODEL_TYPE ="CNN" #Currently MPL(Fully connected) or LSTM or CNN"
 
 MINIBATCH_SIZE = 64
 DISCOUNT = 0.9
 UPDATE_TARGET_EVERY = 5
 
 #How many candles should the prediction be made on?
-NUMBER_OF_CANDLES = 20
+NUMBER_OF_CANDLES = 50
 
 #Reduce these to reduce the data trained on.
-LIMIT_DATA = 150 # there is about 2500 datapoints for each stock.
-LIMIT_STOCKS = 3 #There is 30 data for 30 stocks.
+LIMIT_DATA = 300 # there is about 2500 datapoints for each stock.
+LIMIT_STOCKS = 50 #There is 30 data for 30 stocks.
 
 
 settings = {"Model_name": MODEL_NAME,
@@ -104,6 +103,7 @@ def main(aphkey,data,preview):
 
             if done:
                 print(episode_reward)
+                #print(sess)
     
             current_state = new_state
             step+=1
@@ -154,12 +154,13 @@ def parseargs():
 
 
     ##### TF gpu settings.
+    sess = None
     if gpu:
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
-        session = tf.Session(config=config)
+        sess = tf.Session(config=tf.ConfigProto(log_device_placement=True))
 
-    return  aphkey, data, preview
+    return  aphkey, data, preview 
     
 
 if __name__ == "__main__":
