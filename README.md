@@ -6,4 +6,4 @@ Code is at an experimental phase.
 Repo that contains snippets of my journey to mastering reinforcement learning.
 Some documentation is to come.
 
-Kudos to Sentdex, much of this is inspired by hes previous work. www.pythonprogramming.net
+Kudos to Sentdex, much of this is inspired by his previous work. www.pythonprogramming.net
