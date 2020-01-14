@@ -11,19 +11,17 @@ import random
 import tensorflow as tf
 
 #Input Constants.
-START_EPSILON = 0.5
+START_EPSILON = 0.1
 EPSILON_DECAY = 0.9998
-MIN_EPSILON = 0.04
+MIN_EPSILON = 0.05
 EPISODES = 20000
 AGGREGATE_STATS_EVERY = 50
 STOCK_DATA_FILE = "data/SP100_2015-2019data.csv" #Filename for the data used for training
 TICKER_FILE = "data/SP100tickers.txt" #Filename for the symbols/tickers
 
-LOAD_MODEL = "models/256x256x128.50c____38.14max___-7.29avg__-29.26min__1578599159ep_4150mod_CNN.model" # Load existing model?. Insert path.
+LOAD_MODEL = "models/64x64x16.50c_____6.89max___-0.50avg__-14.42min__1579012731ep_7200mod_LSTM.model" # Load existing model?. Insert path.
 REPLAY_MEMORY_SIZE = 50000
 MIN_REPLAY_MEMORY_SIZE = 1000
-MODEL_NAME="256x256x128.50c"
-MODEL_TYPE ="CNN" #Currently MPL(Fully connected) or LSTM or CNN"
 
 MINIBATCH_SIZE = 64
 DISCOUNT = 0.9
@@ -31,6 +29,9 @@ UPDATE_TARGET_EVERY = 5
 
 #How many candles should the prediction be made on?
 NUMBER_OF_CANDLES = 50
+
+MODEL_NAME="64x64x16."+str(NUMBER_OF_CANDLES)+"c"
+MODEL_TYPE ="LSTM" #Currently MPL(Fully connected) or LSTM or CNN"
 
 #Reduce these to reduce the data trained on.
 LIMIT_DATA = 300 # there is about 2500 datapoints for each stock.
@@ -154,7 +155,6 @@ def parseargs():
 
 
     ##### TF gpu settings.
-    sess = None
     if gpu:
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True

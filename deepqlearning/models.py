@@ -330,19 +330,15 @@ class DQNAgent:
 
             elif self.settings["Model_type"] == "LSTM":
                 model = Sequential()
-                model.add(CuDNNLSTM(128, input_shape=self.env.OBSEREVATION_SPACE_VALUES, return_sequences=True))#CuDNNLSTM
+                model.add(CuDNNLSTM(64, input_shape=self.env.OBSEREVATION_SPACE_VALUES, return_sequences=True))#CuDNNLSTM
                 model.add(Dropout(0.2))
                 model.add(BatchNormalization()) 
 
-                model.add( CuDNNLSTM(128, return_sequences=True))#CuDNNLSTM, no activation
+                model.add(CuDNNLSTM(64))#CuDNNLSTM, no activation
                 model.add(Dropout(0.2))
                 model.add(BatchNormalization())
 
-                model.add(CuDNNLSTM(128))#CuDNNLSTM, no activation
-                model.add(Dropout(0.2))
-                model.add(BatchNormalization())
-
-                model.add(Dense(32, activation='relu'))
+                model.add(Dense(16, activation='relu'))
                 model.add(Dropout(0.2))
 
                 model.add(Dense(self.env.ACTION_SPACE_SIZE, activation='softmax'))
