@@ -11,31 +11,31 @@ import random
 import tensorflow as tf
 
 #Input Constants.
-START_EPSILON = 0.1
+START_EPSILON = 1
 EPSILON_DECAY = 0.9998
-MIN_EPSILON = 0.05
+MIN_EPSILON = 0.04
 EPISODES = 20000
-AGGREGATE_STATS_EVERY = 50
+AGGREGATE_STATS_EVERY = 100
 STOCK_DATA_FILE = "data/SP100_2015-2019data.csv" #Filename for the data used for training
 TICKER_FILE = "data/SP100tickers.txt" #Filename for the symbols/tickers
 
-LOAD_MODEL = "models/64x64x16.50c_____6.89max___-0.50avg__-14.42min__1579012731ep_7200mod_LSTM.model" # Load existing model?. Insert path.
+LOAD_MODEL =None # "models/64x64x16.50c____12.97max____0.21avg___-5.73min__1579097859ep_7100mod_LSTM.model" # Load existing model?. Insert path.
 REPLAY_MEMORY_SIZE = 50000
 MIN_REPLAY_MEMORY_SIZE = 1000
 
 MINIBATCH_SIZE = 64
-DISCOUNT = 0.9
+DISCOUNT = 0.90
 UPDATE_TARGET_EVERY = 5
 
 #How many candles should the prediction be made on?
-NUMBER_OF_CANDLES = 50
+NUMBER_OF_CANDLES = 20
 
-MODEL_NAME="64x64x16."+str(NUMBER_OF_CANDLES)+"c"
-MODEL_TYPE ="LSTM" #Currently MPL(Fully connected) or LSTM or CNN"
+MODEL_NAME="128x64."+str(NUMBER_OF_CANDLES)+"c_RewSha-0.2_D-0.95"
+MODEL_TYPE ="MLP" #Currently MPL(Fully connected) or LSTM or CNN"
 
 #Reduce these to reduce the data trained on.
-LIMIT_DATA = 300 # there is about 2500 datapoints for each stock.
-LIMIT_STOCKS = 50 #There is 30 data for 30 stocks.
+LIMIT_DATA = 500 # Days of data for training
+LIMIT_STOCKS = 100 #Number of stocks to train on
 
 
 settings = {"Model_name": MODEL_NAME,
@@ -95,7 +95,10 @@ def main(aphkey,data,preview):
             else:
                 action = np.random.randint(0, env.ACTION_SPACE_SIZE)
 
-            new_state, reward , done = env.step(action, episode)
+            #Get simplestrat action
+            simplestrat_action = func.simplestrat(current_state,settings)
+
+            new_state, reward , done = env.step(action, episode, simplestrat_action)
     
             episode_reward += reward
         
@@ -118,8 +121,7 @@ def main(aphkey,data,preview):
             max_reward = max(ep_rewards[-AGGREGATE_STATS_EVERY:])
             agent.tensorboard.update_stats(reward_avg=average_reward, reward_min=min_reward, reward_max=max_reward, epsilon=epsilon)
 
-            # Save model, but only when min reward is greater or equal a set value
-            #if min_reward >= MIN_REWARD:
+            #Save model
             agent.model.save(f'models/{MODEL_NAME}__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}ep_{episode}mod_{settings["Model_type"]}.model')
 
         # Decay epsilon

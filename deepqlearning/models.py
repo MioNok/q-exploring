@@ -112,6 +112,8 @@ class StockEnv:
 
         self.current_portfolio = dict()
         self.buy_n_hold_portfolio = dict()
+        self.simplestrat_portfolio = dict()
+
         self.settings = settings
 
         self.amount_of_stocks = settings["Limit_stocks"]
@@ -129,13 +131,14 @@ class StockEnv:
 
         self.current_stock = 0 # Training data holds 30 stocks
         self.stock_size = 2500 # default is 2500, but for some stocks there is not that much data available
-        
+        self.last_reward = 0 # keep track if the change in the size of reward
     
     
     def reset(self):
         #reset and return first observation
         self.current_portfolio = Portfolio()
         self.buy_n_hold_portfolio = Portfolio()
+        self.simplestrat_portfolio = Portfolio()
         
         #first observation
         self.current_step = 0
@@ -150,7 +153,7 @@ class StockEnv:
         return observation
     
     
-    def step(self, action, episode):
+    def step(self, action, episode,simplestrat_action):
         self.current_step +=1
 
         #self.stock_size = self.stoset[self.current_stock].shape[0]
@@ -162,19 +165,52 @@ class StockEnv:
         #update buy and hold portfolio. It always buys an then holds untill the next stock.
         self.buy_n_hold_portfolio.action(2, self.current_step, self.stoset[self.current_stock], self.NUM_CANDLES, 0)
 
+        #Simple strat port
+        simplestrat_action 
+        self.simplestrat_portfolio.action(simplestrat_action, self.current_step, self.stoset[self.current_stock], self.NUM_CANDLES, 0)
+
         next_observation = self.get_data()
         
-        #Check the reward. The value of the portfolio is equal to the size of the reward.
-        reward = 0
+        #Reward shaping
+        # Clarification - Reward == difference the value of the portfolios
+        # Calculate after every step the percentage difference to the benchmark 
+        # If the difference has increased the reward is 1, if it has decreased its -1
+        current_port_sum = self.current_portfolio.portfolio["share"][0] * self.current_portfolio.portfolio["currentstockvalue"][0] + self.current_portfolio.portfolio["unusedBP"][0]
+        benchmark_port_sum = self.buy_n_hold_portfolio.portfolio["share"][0] * self.buy_n_hold_portfolio.portfolio["currentstockvalue"][0] + self.buy_n_hold_portfolio.portfolio["unusedBP"][0]
+        difference = current_port_sum - benchmark_port_sum
+        reward = (difference / benchmark_port_sum) *100
+
+
+        #Update last reward if it is the 1st step in an episode.
+        if self.current_step == 1:
+            self.last_reward = reward
+        
+        #We are past the 1st step
+        # If the move we made has the difference increasing, increase the reward
+        elif reward > self.last_reward:
+            reward = 1
+        
+        # If the move we made has the difference increasing, decrease the reward
+        elif reward < self.last_reward:
+            reward = -1
+
+        #If the reward is the same as last reward, no increase or decrease.
+        else:
+            reward = 0
+            
+        #Update the last reward
+        self.last_reward = reward
+
+
         if self.current_step == self.stock_size-self.NUM_CANDLES-1:
             current_port_sum = self.current_portfolio.portfolio["share"][0] * self.current_portfolio.portfolio["currentstockvalue"][0] + self.current_portfolio.portfolio["unusedBP"][0]#Switch 0 to self.current_stock if training on multiple stock in one episode.
             benchmark_port_sum = self.buy_n_hold_portfolio.portfolio["share"][0] * self.buy_n_hold_portfolio.portfolio["currentstockvalue"][0] + self.buy_n_hold_portfolio.portfolio["unusedBP"][0]#Switch 0 to self.current_stock if training on multiple stock in one episode.
-            
+            simplestrat_port_sum = self.simplestrat_portfolio.portfolio["share"][0] * self.simplestrat_portfolio.portfolio["currentstockvalue"][0] + self.simplestrat_portfolio.portfolio["unusedBP"][0]
 
             #The final reward is the difference in the gain between the ML algo and the benchmark
             #Calculate percentage difference
-            difference = current_port_sum - benchmark_port_sum
-            reward = (difference / benchmark_port_sum) *100
+            #difference = current_port_sum - benchmark_port_sum
+            #reward = (difference / benchmark_port_sum) *100
 
             #If preview is set to true, save graph of the performace.
             # Dont save it every round, only if the episode is divisible by Aggregate_stats_every
@@ -182,7 +218,8 @@ class StockEnv:
                 #Port values.
                 current_port_history = np.array(self.current_portfolio.portfolio["porthistory"][0])#Switch 0 to self.current_stock if training on multiple stock in one episode.
                 benchmark_port_history = np.array(self.buy_n_hold_portfolio.portfolio["porthistory"][0])#Switch 0 to self.current_stock if training on multiple stock in one episode.
-                
+                simplestrat_port_history = np.array(self.simplestrat_portfolio.portfolio["porthistory"][0])
+
                 #Dates to graphs, ignore the first 50 since they are also ignored in the porthistory.
                 timeseries = np.array(self.stoset[self.current_stock].timestamp[self.NUM_CANDLES:])
                 dates = np.array([datetime.strptime(day, '%Y-%m-%d') for day in timeseries])
@@ -196,6 +233,7 @@ class StockEnv:
                 plt.figure(figsize=(20,10))
                 plt.plot(dates,current_port_history, label = "Reinforced portfolio")
                 plt.plot(dates,benchmark_port_history, label = "Benchmark portfolio")
+                plt.plot(dates,simplestrat_port_history, label = "Simplestrat portfolio")
                 plt.legend(loc="upper left")
                 
                 #Save graph to folder
@@ -242,6 +280,7 @@ class StockEnv:
             normalized_observation = np.asarray(normalized_observation)
             
             normalized_observation = normalized_observation.reshape(self.settings["Number_of_candles"],5,1)
+        
         return np.array(normalized_observation)
 
     
@@ -315,16 +354,17 @@ class DQNAgent:
         else:
             if self.settings["Model_type"] == "MLP":
                 model = Sequential()
-                model.add(Dense(256, input_shape = self.env.OBSEREVATION_SPACE_VALUES))
+                model.add(Dense(128, input_shape = self.env.OBSEREVATION_SPACE_VALUES))
                 model.add(Activation("relu"))
                 model.add(Dropout(0.2))
             
-                model.add(Dense(256))
-                model.add(Activation("relu"))
-                model.add(Dropout(0.2))
+                #model.add(Dense(128))
+                #model.add(Activation("relu"))
+                #model.add(Dropout(0.2))
 
                 model.add(Flatten())
-                model.add(Dense(32))
+                model.add(Dense(64))
+                model.add(Activation("relu"))
                 model.add(Dense(self.env.ACTION_SPACE_SIZE, activation = "linear"))
                 model.compile(loss = "mse", optimizer = Adam(lr=0.001), metrics=["accuracy"])
 

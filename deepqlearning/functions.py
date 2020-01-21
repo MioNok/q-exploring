@@ -90,7 +90,23 @@ def preprocessdata(datafilename,tickerstxt,limit, stocklimit ):
     return stockdata, normalized_stockdata
 
 
+def simplestrat(state,settings):
 
+    pandas_state = pd.DataFrame(state)
+
+
+    close_start = pandas_state.iloc[0,3]
+    close_end = pandas_state.iloc[settings["Number_of_candles"]-1,3]
+
+    #If the stock has closed 
+    if close_start < close_end:
+        action = 2
+    else:
+        action = 0
+
+    
+    
+    return action
 
 
     

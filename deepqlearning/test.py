@@ -9,7 +9,7 @@ from keras.optimizers import Adam
 
 
 #Model to test on:
-LOAD_MODEL = "models/256x256x32.30c__4823.80max_-3815.89avg_-10703.61min__1578323878.model" # Load existing model?. Insert path.
+LOAD_MODEL = "models/128x64.20c_RewSha-0.2_D-0.3___477.00max__-60.91avg_-478.00min__1579573684ep_19700mod_MLP.model" # Load existing model?. Insert path.
 MODEL_NAME="Test"
 MODEL_TYPE="MLP"
 #Input Constants.
@@ -18,7 +18,7 @@ STOCK_DATA_FILE = "data/Dow2010-2019data.csv" #Filename for the data used for tr
 TICKER_FILE = "data/dowtickers.txt" #Filename for the symbols/tickers
 
 #Reduce these to reduce the data trained on.
-LIMIT_DATA = 2500 # there is about 2500 datapoints(days) for each stock.
+LIMIT_DATA = 500 # there is about 2500 datapoints(days) for each stock.
 LIMIT_STOCKS = 1 #There is 10 years data for 30 stocks. Choose on how many you want to train.
 NUMBER_OF_CANDLES = 20
 
@@ -43,7 +43,7 @@ def main(stock, aphkey):
     if stock != None:
         settings["Stock_data_file"] = "testdata/testdata.csv"
         settings["Ticker_file"] = "testdata/testticker.txt"
-        func.fetchstockdata(aphkey,True,stock)
+        func.fetchstockdata(aphkey,True,stock,None)
 
 
 
@@ -66,7 +66,11 @@ def main(stock, aphkey):
 
     while not done:
         action = agent.get_action(current_state)
-        new_state, reward , done = env.step(action, 1)
+        
+        #Get simplestrat action
+        simplestrat_action = func.simplestrat(current_state,settings)
+        
+        new_state, reward , done = env.step(action, 1, simplestrat_action)
         episode_reward += reward
        
         current_state = new_state
