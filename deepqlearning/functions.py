@@ -6,6 +6,9 @@ import pandasql as ps
 import os
 
 
+#Logdata dataframe is saved here. Probably faster to have it globally than reading and writing to a large file.
+
+
 def fetchstockdata(aphkey,test,ticker, tickerfile): # perhaps add apikey as a flag, returns the data in a pandas dataframe, columns = timestamp, open, high, low, close, volume. Data is daily.
 
     #If we are not running the test script
@@ -92,9 +95,8 @@ def preprocessdata(datafilename,tickerstxt,limit, stocklimit ):
 
 def simplestrat(state,settings):
 
+    #Simple trading stategy. If the algo cannot beat this its useless.
     pandas_state = pd.DataFrame(state)
-
-
     close_start = pandas_state.iloc[0,3]
     close_end = pandas_state.iloc[settings["Number_of_candles"]-1,3]
 
@@ -104,11 +106,28 @@ def simplestrat(state,settings):
     else:
         action = 0
 
-    
-    
     return action
 
 
-    
-    
+def appendlogdata(stocknr,episode,reward, current_port_sum, benchmark_port_sum, reward_pcr,logdatafile):
+
+    #Logging the data and writing it to a csv 
+    logdict = {"Stocknr": int(stocknr),
+            "Episode": int(episode),
+            "Reward": int(reward),
+            "current_port_sum": int(current_port_sum),
+            "benchmark_port_sum": int(benchmark_port_sum),
+            "reward_pcr": int(reward_pcr)}
+
+    logdatafile = logdatafile.append(logdict, ignore_index = True)
+    return logdatafile
+
+
+def writelogdata(logdatafile, settings):
+    # Create testdata folder
+    if not os.path.isdir('logdata'):
+        os.makedirs('logdata')
+
+    #Update the file 
+    logdatafile.to_csv("logdata/Logdata"+ settings["Model_name"]+".csv")    
     

@@ -14,24 +14,24 @@ import tensorflow as tf
 START_EPSILON = 1
 EPSILON_DECAY = 0.9998
 MIN_EPSILON = 0.04
-EPISODES = 20000
+EPISODES = 30000
 AGGREGATE_STATS_EVERY = 100
 STOCK_DATA_FILE = "data/SP100_2015-2019data.csv" #Filename for the data used for training
 TICKER_FILE = "data/SP100tickers.txt" #Filename for the symbols/tickers
 
-LOAD_MODEL =None # "models/64x64x16.50c____12.97max____0.21avg___-5.73min__1579097859ep_7100mod_LSTM.model" # Load existing model?. Insert path.
+LOAD_MODEL =  None #"models/128x64.20c_RewSha-0.2_D-0.95___477.00max__-41.02avg_-476.00min__1579709109ep_13100mod_MLP.model" # Load existing model?. Insert path.
 REPLAY_MEMORY_SIZE = 50000
 MIN_REPLAY_MEMORY_SIZE = 1000
 
 MINIBATCH_SIZE = 64
-DISCOUNT = 0.90
+DISCOUNT = 0.95
 UPDATE_TARGET_EVERY = 5
 
 #How many candles should the prediction be made on?
 NUMBER_OF_CANDLES = 20
 
-MODEL_NAME="128x64."+str(NUMBER_OF_CANDLES)+"c_RewSha-0.2_D-0.95"
-MODEL_TYPE ="MLP" #Currently MPL(Fully connected) or LSTM or CNN"
+MODEL_NAME="128x64."+str(NUMBER_OF_CANDLES)+"c_RewSha-0.4_D-"+str(DISCOUNT)
+MODEL_TYPE ="MLP" #Currently MLP(Fully connected) or LSTM or CNN"
 
 #Reduce these to reduce the data trained on.
 LIMIT_DATA = 500 # Days of data for training
@@ -84,7 +84,7 @@ def main(aphkey,data,preview):
     
         episode_reward = 0
         step = 1
-        current_state = env.reset()
+        current_state = env.reset(rand= True) #>We want to randomise which stock comes.
     
         done = False
     
@@ -105,8 +105,8 @@ def main(aphkey,data,preview):
             agent.update_replay_memory((current_state, action, reward, new_state, done))
             agent.train(done,step)
 
-            if done:
-                print(episode_reward)
+            #if done:
+                #print(episode_reward)
                 #print(sess)
     
             current_state = new_state

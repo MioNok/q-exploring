@@ -9,17 +9,17 @@ from keras.optimizers import Adam
 
 
 #Model to test on:
-LOAD_MODEL = "models/128x64.20c_RewSha-0.2_D-0.3___477.00max__-60.91avg_-478.00min__1579573684ep_19700mod_MLP.model" # Load existing model?. Insert path.
+LOAD_MODEL = "models/128x64.20c_RewSha-0.4_D-0.95____99.00max____3.72avg__-69.00min__1579854724ep_23600mod_MLP.model" # Load existing model?. Insert path.
 MODEL_NAME="Test"
 MODEL_TYPE="MLP"
 #Input Constants.
 AGGREGATE_STATS_EVERY = 1
-STOCK_DATA_FILE = "data/Dow2010-2019data.csv" #Filename for the data used for training
-TICKER_FILE = "data/dowtickers.txt" #Filename for the symbols/tickers
+STOCK_DATA_FILE = "data/SP100_2015-2019data.csv" #Filename for the data used for training
+TICKER_FILE = "data/SP100tickers.txt" #Filename for the symbols/tickers
 
 #Reduce these to reduce the data trained on.
-LIMIT_DATA = 500 # there is about 2500 datapoints(days) for each stock.
-LIMIT_STOCKS = 1 #There is 10 years data for 30 stocks. Choose on how many you want to train.
+LIMIT_DATA = 1500 # there is about 2500 datapoints(days) for each stock.
+LIMIT_STOCKS = 100 #There is 10 years data for 30 stocks. Choose on how many you want to train.
 NUMBER_OF_CANDLES = 20
 
 ###
@@ -58,23 +58,26 @@ def main(stock, aphkey):
     # For stats
     ep_rewards = [0]
 
-    episode_reward = 0
-    step = 1
-    current_state = env.reset()
-    
-    done = False
+    #Running for 2x the amount of stocks + 1 to make sure the episode stops at 200.
+    for episode in range(LIMIT_STOCKS+1):
+            
+        done = False
+        episode_reward = 0
+        step = 0
+        current_state = env.reset(rand = False)
 
-    while not done:
-        action = agent.get_action(current_state)
+        while not done:
+            action = agent.get_action(current_state)
+            
+            #Get simplestrat action
+            simplestrat_action = func.simplestrat(current_state,settings)
+            
+            new_state, reward , done = env.step(action, episode, simplestrat_action)
+            episode_reward += reward
         
-        #Get simplestrat action
-        simplestrat_action = func.simplestrat(current_state,settings)
-        
-        new_state, reward , done = env.step(action, 1, simplestrat_action)
-        episode_reward += reward
-       
-        current_state = new_state
-        step+=1
+            current_state = new_state
+            step+=1
+        print("Ep done ", episode)
 
     print("Exiting.")
 

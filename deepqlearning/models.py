@@ -129,12 +129,15 @@ class StockEnv:
         self.MAX_STEPS = 2500 #Currentlty the size of our dataset for each stock
         self.current_step = 0 # will update as we go
 
-        self.current_stock = 0 # Training data holds 30 stocks
+        self.current_stock = -1 # Training data holds 100 stocks
         self.stock_size = 2500 # default is 2500, but for some stocks there is not that much data available
         self.last_reward = 0 # keep track if the change in the size of reward
-    
-    
-    def reset(self):
+        self.ep_reward = 0 # This episode reward is just for logging purposes.
+
+        self.logdatafile = pd.DataFrame()
+
+
+    def reset(self, rand):
         #reset and return first observation
         self.current_portfolio = Portfolio()
         self.buy_n_hold_portfolio = Portfolio()
@@ -144,12 +147,20 @@ class StockEnv:
         self.current_step = 0
         observation = self.get_data()
 
-        #Pick one stock at random
-        self.current_stock = np.random.randint(0,self.settings["Limit_stocks"])
+        #Pick one stock at random if rand is true, othervise just go trough all one by one.
+        if rand:
+            self.current_stock = np.random.randint(0,self.settings["Limit_stocks"])
+        else:
+            self.current_stock += 1
 
-        #Update the stock size
+        if self.current_stock == 100:
+            self.current_stock = 0
+
+        #Update the stock size and set ep reward to 0.
         self.stock_size = self.stoset[self.current_stock].shape[0]
-        
+        self.ep_reward = 0
+        self.last_reward_pcr = 0
+
         return observation
     
     
@@ -178,34 +189,47 @@ class StockEnv:
         current_port_sum = self.current_portfolio.portfolio["share"][0] * self.current_portfolio.portfolio["currentstockvalue"][0] + self.current_portfolio.portfolio["unusedBP"][0]
         benchmark_port_sum = self.buy_n_hold_portfolio.portfolio["share"][0] * self.buy_n_hold_portfolio.portfolio["currentstockvalue"][0] + self.buy_n_hold_portfolio.portfolio["unusedBP"][0]
         difference = current_port_sum - benchmark_port_sum
-        reward = (difference / benchmark_port_sum) *100
+        # Percentage difference in the gain of benchmark to algo
+        reward_pcr = (difference / benchmark_port_sum) *100 
 
 
         #Update last reward if it is the 1st step in an episode.
         if self.current_step == 1:
-            self.last_reward = reward
+            self.last_reward_pcr = reward_pcr
+            reward = 0
         
         #We are past the 1st step
         # If the move we made has the difference increasing, increase the reward
-        elif reward > self.last_reward:
+        elif reward_pcr > self.last_reward_pcr:
             reward = 1
         
         # If the move we made has the difference increasing, decrease the reward
-        elif reward < self.last_reward:
+        elif reward_pcr < self.last_reward_pcr:
             reward = -1
 
         #If the reward is the same as last reward, no increase or decrease.
         else:
             reward = 0
             
-        #Update the last reward
-        self.last_reward = reward
+        #Update the last reward and episode reward
+        self.last_reward_pcr = reward_pcr
+        self.ep_reward += reward
+
+
 
 
         if self.current_step == self.stock_size-self.NUM_CANDLES-1:
             current_port_sum = self.current_portfolio.portfolio["share"][0] * self.current_portfolio.portfolio["currentstockvalue"][0] + self.current_portfolio.portfolio["unusedBP"][0]#Switch 0 to self.current_stock if training on multiple stock in one episode.
             benchmark_port_sum = self.buy_n_hold_portfolio.portfolio["share"][0] * self.buy_n_hold_portfolio.portfolio["currentstockvalue"][0] + self.buy_n_hold_portfolio.portfolio["unusedBP"][0]#Switch 0 to self.current_stock if training on multiple stock in one episode.
             simplestrat_port_sum = self.simplestrat_portfolio.portfolio["share"][0] * self.simplestrat_portfolio.portfolio["currentstockvalue"][0] + self.simplestrat_portfolio.portfolio["unusedBP"][0]
+
+
+            #Logging some data to plot later
+            self.logdatafile = func.appendlogdata(self.current_stock, episode, self.ep_reward, current_port_sum, benchmark_port_sum, reward_pcr, self.logdatafile)
+
+            #Wtite the data to file every now and then.
+            if episode % 25 == 0 or episode == 1:
+                func.writelogdata(self.logdatafile, self.settings)
 
             #The final reward is the difference in the gain between the ML algo and the benchmark
             #Calculate percentage difference
