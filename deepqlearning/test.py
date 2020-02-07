@@ -9,7 +9,7 @@ from keras.optimizers import Adam
 
 
 #Model to test on:
-LOAD_MODEL = "models/128x64.20c_RewSha-0.4_D-0.95____99.00max____3.72avg__-69.00min__1579854724ep_23600mod_MLP.model" # Load existing model?. Insert path.
+LOAD_MODEL = "models/128x128x64.20c_RewSha-0.4_D-0.95____73.00max____5.43avg__-74.00min__1580540077ep_25500mod_LSTM.model" # Load existing model?. Insert path.
 MODEL_NAME="Test"
 MODEL_TYPE="MLP"
 #Input Constants.
@@ -19,7 +19,7 @@ TICKER_FILE = "data/SP100tickers.txt" #Filename for the symbols/tickers
 
 #Reduce these to reduce the data trained on.
 LIMIT_DATA = 1500 # there is about 2500 datapoints(days) for each stock.
-LIMIT_STOCKS = 100 #There is 10 years data for 30 stocks. Choose on how many you want to train.
+LIMIT_STOCKS = 50 #There is 10 years data for 30 stocks. Choose on how many you want to train.
 NUMBER_OF_CANDLES = 20
 
 ###

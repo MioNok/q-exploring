@@ -19,18 +19,18 @@ AGGREGATE_STATS_EVERY = 100
 STOCK_DATA_FILE = "data/SP100_2015-2019data.csv" #Filename for the data used for training
 TICKER_FILE = "data/SP100tickers.txt" #Filename for the symbols/tickers
 
-LOAD_MODEL =  None #"models/128x64.20c_RewSha-0.2_D-0.95___477.00max__-41.02avg_-476.00min__1579709109ep_13100mod_MLP.model" # Load existing model?. Insert path.
+LOAD_MODEL = None #"models/64x32.20c_RewSha-0.4_D-0.9____74.00max___-3.24avg__-75.00min__1580846129ep_16400mod_MLP.model" # Load existing model?. Insert path.
 REPLAY_MEMORY_SIZE = 50000
 MIN_REPLAY_MEMORY_SIZE = 1000
 
 MINIBATCH_SIZE = 64
-DISCOUNT = 0.95
+DISCOUNT = 0.8
 UPDATE_TARGET_EVERY = 5
 
 #How many candles should the prediction be made on?
 NUMBER_OF_CANDLES = 20
 
-MODEL_NAME="128x64."+str(NUMBER_OF_CANDLES)+"c_RewSha-0.4_D-"+str(DISCOUNT)
+MODEL_NAME="64x32."+str(NUMBER_OF_CANDLES)+"c_RewSha-0.4_D-"+str(DISCOUNT)
 MODEL_TYPE ="MLP" #Currently MLP(Fully connected) or LSTM or CNN"
 
 #Reduce these to reduce the data trained on.
@@ -95,10 +95,10 @@ def main(aphkey,data,preview):
             else:
                 action = np.random.randint(0, env.ACTION_SPACE_SIZE)
 
-            #Get simplestrat action
-            simplestrat_action = func.simplestrat(current_state,settings)
+            #Get simplestrat action, currently not in use.
+            #simplestrat_action = func.simplestrat(current_state,settings)
 
-            new_state, reward , done = env.step(action, episode, simplestrat_action)
+            new_state, reward , done = env.step(action, episode, 1) # 1 is the simple strat action placeholder
     
             episode_reward += reward
         
