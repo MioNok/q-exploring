@@ -134,7 +134,7 @@ class StockEnv:
         self.last_reward = 0 # keep track if the change in the size of reward
         self.ep_reward = 0 # This episode reward is just for logging purposes.
 
-        self.logdatafile = pd.DataFrame()
+        self.logdatafile = pd.DataFrame() #Dataframe to hold logs for the runs. Written to a file in logdata/
 
 
     def reset(self, rand):
@@ -480,7 +480,7 @@ class DQNAgent:
         
         self.model.fit(np.array(x), np.array(y), batch_size = self.settings["Minibatch_size"], verbose = 0, shuffle = False, callbacks = [self.tensorboard] if terminal_state else None)
         
-         #updating to determin if we weant to update target model
+        #updating to determin if we weant to update target model
         if terminal_state:
             self.target_update_counter +=1
             

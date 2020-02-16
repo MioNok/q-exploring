@@ -129,5 +129,5 @@ def writelogdata(logdatafile, settings):
         os.makedirs('logdata')
 
     #Update the file 
-    logdatafile.to_csv("logdata/Logdata"+ settings["Model_name"]+".csv")    
+    logdatafile.to_csv("logdata/Logdata"+ settings["Model_name"]+settings["Model_type"]+".csv")    
     

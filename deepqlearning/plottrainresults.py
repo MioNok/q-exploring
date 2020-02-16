@@ -4,7 +4,7 @@ import numpy as np
 
 #Plots a bar graph showing the distribution of percantage gains per stock during the training
 
-dataraw = pd.read_csv("logdata/LogdataTest.csv")
+dataraw = pd.read_csv("logdata/Logdata128x64.20c_RewSha-0.4_D-0.95---SAVE.csv")
 tickers = pd.read_csv("data/SP100tickers.txt").transpose()
 
 #Taking the last 10% of data, dont want to include training data where epsilon has been high.
