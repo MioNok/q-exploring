@@ -109,10 +109,11 @@ def simplestrat(state,settings):
     return action
 
 
-def appendlogdata(stocknr,episode,reward, current_port_sum, benchmark_port_sum, reward_pcr,logdatafile):
+def appendlogdata(stocknr,episode,reward, current_port_sum, benchmark_port_sum, reward_pcr,logdatafile,tickers):
 
     #Logging the data and writing it to a csv 
     logdict = {"Stocknr": int(stocknr),
+            "Ticker": tickers[int(stocknr)],
             "Episode": int(episode),
             "Reward": int(reward),
             "current_port_sum": int(current_port_sum),

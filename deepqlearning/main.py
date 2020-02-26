@@ -11,15 +11,15 @@ import random
 import tensorflow as tf
 
 #Input Constants.
-START_EPSILON = 0.6
+START_EPSILON = 1
 EPSILON_DECAY = 0.9998
-MIN_EPSILON = 0.04
+MIN_EPSILON = 0.05
 EPISODES = 30000
 AGGREGATE_STATS_EVERY = 100
 STOCK_DATA_FILE = "data/SP100_2015-2019data.csv" #Filename for the data used for training
 TICKER_FILE = "data/SP100tickers.txt" #Filename for the symbols/tickers
 
-LOAD_MODEL = "models/128x64.20c_RewSha-0.4_D-0.95____73.00max____4.37avg__-80.00min__1579872031ep_26700mod_MLP.model" # Load existing model?. Insert path.
+LOAD_MODEL = None # "models/128x64.20c_RewSha-0.4_D-0.95____73.00max____4.37avg__-80.00min__1579872031ep_26700mod_MLP.model" # Load existing model?. Insert path.
 REPLAY_MEMORY_SIZE = 50000
 MIN_REPLAY_MEMORY_SIZE = 1000
 
@@ -35,7 +35,7 @@ MODEL_TYPE ="MLP" #Currently MLP(Fully connected) or LSTM or CNN"
 
 #Reduce these to reduce the data trained on.
 LIMIT_DATA = 500 # Days of data for training
-LIMIT_STOCKS = 100 #Number of stocks to train on
+LIMIT_STOCKS = 101 # Number of stocks to train on
 
 
 settings = {"Model_name": MODEL_NAME,

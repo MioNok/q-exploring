@@ -136,6 +136,7 @@ class StockEnv:
 
         self.logdatafile = pd.DataFrame() #Dataframe to hold logs for the runs. Written to a file in logdata/
 
+        self.tickers = pd.read_csv(self.settings["Ticker_file"]).transpose().index
 
     def reset(self, rand):
         #reset and return first observation
@@ -201,11 +202,13 @@ class StockEnv:
         #We are past the 1st step
         # If the move we made has the difference increasing, increase the reward
         elif reward_pcr > self.last_reward_pcr:
-            reward = 1
+            # reward = 1  # Reward shaping method 0.4
+            reward = reward_pcr - self.last_reward_pcr # Reward shaping method 0.5
         
         # If the move we made has the difference increasing, decrease the reward
         elif reward_pcr < self.last_reward_pcr:
-            reward = -1
+            # reward = -1 # Reward shaping method 0.4
+            reward = reward_pcr - self.last_reward_pcr # Reward shaping method 0.5
 
         #If the reward is the same as last reward, no increase or decrease.
         else:
@@ -225,7 +228,7 @@ class StockEnv:
 
 
             #Logging some data to plot later
-            self.logdatafile = func.appendlogdata(self.current_stock, episode, self.ep_reward, current_port_sum, benchmark_port_sum, reward_pcr, self.logdatafile)
+            self.logdatafile = func.appendlogdata(self.current_stock, episode, self.ep_reward, current_port_sum, benchmark_port_sum, reward_pcr, self.logdatafile, self.tickers)
 
             #Wtite the data to file every now and then.
             if episode % 25 == 0 or episode == 1:
