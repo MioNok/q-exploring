@@ -121,7 +121,10 @@ class StockEnv:
         self.stoset , self.normalized_stoset = func.preprocessdata(settings["Stock_data_file"],
                                                                    settings["Ticker_file"],
                                                                    settings["Limit_data"], 
-                                                                   settings["Limit_stocks"])
+                                                                   settings["Limit_stocks"],
+                                                                   settings["Number_of_candles"],
+                                                                   settings["Skip_stock"],
+                                                                   settings["Offset_data"])
         
         self.NUM_CANDLES = settings["Number_of_candles"] 
         self.ACTION_SPACE_SIZE = 3 #sell = 0, hold = 1, buy = 2
@@ -137,13 +140,13 @@ class StockEnv:
         self.logdatafile = pd.DataFrame() #Dataframe to hold logs for the runs. Written to a file in logdata/
 
         self.tickers = pd.read_csv(self.settings["Ticker_file"]).transpose().index
-
+        
     def reset(self, rand):
         #reset and return first observation
         self.current_portfolio = Portfolio()
         self.buy_n_hold_portfolio = Portfolio()
         self.simplestrat_portfolio = Portfolio()
-        
+
         #first observation
         self.current_step = 0
         observation = self.get_data()
@@ -154,11 +157,18 @@ class StockEnv:
         else:
             self.current_stock += 1
 
-        if self.current_stock == 100:
+        if self.current_stock == self.settings["Limit_stocks"]:
             self.current_stock = 0
 
         #Update the stock size and set ep reward to 0.
-        self.stock_size = self.stoset[self.current_stock].shape[0]
+        try:
+            self.stock_size = self.stoset[self.current_stock].shape[0]
+        except:
+            print(self.current_stock)
+            print(self.stoset[self.current_stock])
+            print(self.stoset[self.current_stock].shape[0])
+            exit()
+
         self.ep_reward = 0
         self.last_reward_pcr = 0
 
@@ -171,15 +181,23 @@ class StockEnv:
         #self.stock_size = self.stoset[self.current_stock].shape[0]
 
         #update current_portfolio
-        self.current_portfolio.action(action, self.current_step, self.stoset[self.current_stock], self.NUM_CANDLES, 0)
+        try:
+            self.buy_n_hold_portfolio.action(2, self.current_step, self.stoset[self.current_stock], self.NUM_CANDLES, 0)
+            self.current_portfolio.action(action, self.current_step, self.stoset[self.current_stock], self.NUM_CANDLES, 0)
+        except:
+            print(action)
+            print(self.current_step)
+            print(self.stoset[self.current_stock])
+            print(self.current_stock)
+            #print(self.stoset)
 
         #The Benchmark
         #update buy and hold portfolio. It always buys an then holds untill the next stock.
         self.buy_n_hold_portfolio.action(2, self.current_step, self.stoset[self.current_stock], self.NUM_CANDLES, 0)
 
         #Simple strat port
-        simplestrat_action 
-        self.simplestrat_portfolio.action(simplestrat_action, self.current_step, self.stoset[self.current_stock], self.NUM_CANDLES, 0)
+        #simplestrat_action 
+        #self.simplestrat_portfolio.action(simplestrat_action, self.current_step, self.stoset[self.current_stock], self.NUM_CANDLES, 0)
 
         next_observation = self.get_data()
         
@@ -213,7 +231,7 @@ class StockEnv:
         #If the reward is the same as last reward, no increase or decrease.
         else:
             reward = 0
-            
+
         #Update the last reward and episode reward
         self.last_reward_pcr = reward_pcr
         self.ep_reward += reward
@@ -226,18 +244,13 @@ class StockEnv:
             benchmark_port_sum = self.buy_n_hold_portfolio.portfolio["share"][0] * self.buy_n_hold_portfolio.portfolio["currentstockvalue"][0] + self.buy_n_hold_portfolio.portfolio["unusedBP"][0]#Switch 0 to self.current_stock if training on multiple stock in one episode.
             simplestrat_port_sum = self.simplestrat_portfolio.portfolio["share"][0] * self.simplestrat_portfolio.portfolio["currentstockvalue"][0] + self.simplestrat_portfolio.portfolio["unusedBP"][0]
 
-
             #Logging some data to plot later
             self.logdatafile = func.appendlogdata(self.current_stock, episode, self.ep_reward, current_port_sum, benchmark_port_sum, reward_pcr, self.logdatafile, self.tickers)
 
             #Wtite the data to file every now and then.
-            if episode % 25 == 0 or episode == 1:
+            if episode % 10 == 0 or episode == 1:
                 func.writelogdata(self.logdatafile, self.settings)
 
-            #The final reward is the difference in the gain between the ML algo and the benchmark
-            #Calculate percentage difference
-            #difference = current_port_sum - benchmark_port_sum
-            #reward = (difference / benchmark_port_sum) *100
 
             #If preview is set to true, save graph of the performace.
             # Dont save it every round, only if the episode is divisible by Aggregate_stats_every
@@ -352,7 +365,7 @@ class ModifiedTensorBoard(TensorBoard):
 
 
 
-#From Sentdex
+#Partly from Sentdex
 # Agent class
 class DQNAgent:
     def __init__(self,env, settings):
@@ -381,7 +394,7 @@ class DQNAgent:
         else:
             if self.settings["Model_type"] == "MLP":
                 model = Sequential()
-                model.add(Dense(64, input_shape = self.env.OBSEREVATION_SPACE_VALUES))
+                model.add(Dense(128, input_shape = self.env.OBSEREVATION_SPACE_VALUES))
                 model.add(Activation("relu"))
                 model.add(Dropout(0.2))
             
@@ -390,7 +403,7 @@ class DQNAgent:
                 #model.add(Dropout(0.2))
 
                 model.add(Flatten())
-                model.add(Dense(32))
+                model.add(Dense(64))
                 model.add(Activation("relu"))
                 model.add(Dense(self.env.ACTION_SPACE_SIZE, activation = "linear"))
                 model.compile(loss = "mse", optimizer = Adam(lr=0.001), metrics=["accuracy"])
@@ -404,6 +417,7 @@ class DQNAgent:
                 model.add(CuDNNLSTM(128))#CuDNNLSTM, no activation
                 model.add(Dropout(0.2))
                 model.add(BatchNormalization())
+                model.add(Flatten())
 
                 model.add(Dense(64, activation='relu'))
                 model.add(Dropout(0.2))
@@ -474,12 +488,12 @@ class DQNAgent:
             x.append(current_state)
             y.append(current_qs)
         
-
-        if self.settings["Model_type"] == "LSTM":
-            y_new = []
-            for row in y:
-                y_new.append(np.argmax(row))
-            y = np.array(y_new).reshape(self.settings["Minibatch_size"],1)
+        # Not needed anymore
+        #if self.settings["Model_type"] == "LSTM":
+        #    y_new = []
+        #    for row in y:
+        #        y_new.append(np.argmax(row))
+        #    y = np.array(y_new).reshape(self.settings["Minibatch_size"],1)
         
         self.model.fit(np.array(x), np.array(y), batch_size = self.settings["Minibatch_size"], verbose = 0, shuffle = False, callbacks = [self.tensorboard] if terminal_state else None)
         

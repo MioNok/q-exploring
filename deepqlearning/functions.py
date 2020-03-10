@@ -14,23 +14,28 @@ def fetchstockdata(aphkey,test,ticker, tickerfile): # perhaps add apikey as a fl
     #If we are not running the test script
     if not test:
         #Read data from file. Transpose it, then to series and lastly to list.
-        symbols = pd.read_csv(tickerfile, header = None).transpose()[0].tolist()
+        symbols = pd.read_csv(tickerfile, header = None).transpose()[0].tolist()[150:]
 
         #Fetch data from api
+        counter = 0
         stockdata = pd.DataFrame()
         for symbol in symbols:
             stockdata_aph = pd.read_csv("https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol="+ symbol +"&outputsize=full&apikey="+aphkey+"&datatype=csv")
             stockdata_aph["ticker"] = symbol
-            stockdata = stockdata.append(stockdata_aph.iloc[4:1262,]) # Number of trading days during this decade. Edit this if for different time period, currently returns approx the last 10 years of data
+            stockdata = stockdata.append(stockdata_aph.iloc[40:542,]) # Number of trading days during this decade. 
             time.sleep(12) # Sleep because of the ratelimit on alphavantage
-            print("fetched", symbol)
+            print("fetched", symbol, counter)
+            counter +=1
+
+            if counter == 150:
+                break
 
         # Create testdata folder
         if not os.path.isdir('data'):
             os.makedirs('data')
 
         #Save data       
-        stockdata.to_csv("data/SP1002015-2019AdjustedData.csv",index = None, header = True)
+        stockdata.to_csv("data/SP500-100-2018-2019_2_AdjustedData.csv",index = None, header = True)
      
     else:
         #Fetch data from api
@@ -54,23 +59,28 @@ def fetchstockdata(aphkey,test,ticker, tickerfile): # perhaps add apikey as a fl
 
     return stockdata
 
-def preprocessdata(datafilename,tickerstxt,limit, stocklimit ):
+def preprocessdata(datafilename,tickerstxt,limit, stocklimit,numcandles,skipstock = 0, offset = 0):
     
     #The data
     stoset_raw = pd.read_csv(datafilename)
     
     #Read tickers, turn to list, an limit acording to stocklimit
-    symbols = pd.read_csv(tickerstxt, header = None).transpose()[0].tolist()[0:stocklimit]
+    symbols = pd.read_csv(tickerstxt, header = None).transpose()[0].tolist()[skipstock:stocklimit+skipstock]
     print(symbols)
     stockdata = [] # Un normalized data for keeping track of stock prices
     normalized_stockdata = [] # Normalized data for training
     
-    progress_counter = 1
+    progress_counter = 1        
     for symbol in symbols:
-        query = "SELECT timestamp, open, high, low, adjusted_close, volume FROM stoset_raw WHERE ticker = '"+symbol+"' LIMIT "+ str(limit)
+        query = "SELECT timestamp, open, high, low, adjusted_close, volume FROM stoset_raw WHERE ticker = '"+symbol+"' LIMIT "+ str(limit)+ " OFFSET "+ str(offset)
         #query dataframe and reverse it so that the older data is first
-        stoset = ps.sqldf(query).iloc[::-1] 
-        
+        stoset = ps.sqldf(query).iloc[::-1]
+
+        if stoset.shape[0] < numcandles:
+            print("Not enough data for", symbol)
+            progress_counter += 1 
+            continue 
+
         #renaming the adjusted_close column to close to limit confusion in the rest of the program
         stoset.rename({"adjusted_close":"close"}, axis = 1, inplace = True) 
         
@@ -115,10 +125,10 @@ def appendlogdata(stocknr,episode,reward, current_port_sum, benchmark_port_sum, 
     logdict = {"Stocknr": int(stocknr),
             "Ticker": tickers[int(stocknr)],
             "Episode": int(episode),
-            "Reward": int(reward),
+            "Reward": float(reward),
             "current_port_sum": int(current_port_sum),
             "benchmark_port_sum": int(benchmark_port_sum),
-            "reward_pcr": int(reward_pcr)}
+            "reward_pcr": float(reward_pcr)}
 
     logdatafile = logdatafile.append(logdict, ignore_index = True)
     return logdatafile

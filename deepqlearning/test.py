@@ -9,21 +9,23 @@ from keras.optimizers import Adam
 
 
 #Model to test on:
-LOAD_MODEL = "models/128x128x64.20c_RewSha-0.4_D-0.95____73.00max____5.43avg__-74.00min__1580540077ep_25500mod_LSTM.model" # Load existing model?. Insert path.
-MODEL_NAME="Test"
+LOAD_MODEL = "models/128x64.20c_RewSha-0.5_D-0.99____82.28max____9.39avg__-22.89min__1583502676ep_15500mod_MLP.model" # Load existing model?. Insert path.
+MODEL_NAME="Test_spdata1_128x64.20c_RewSha-0.5_D-0.99"
 MODEL_TYPE="MLP"
 #Input Constants.
 AGGREGATE_STATS_EVERY = 1
-STOCK_DATA_FILE = "data/SP100_2015-2019data.csv" #Filename for the data used for training
-TICKER_FILE = "data/SP100tickers.txt" #Filename for the symbols/tickers
+STOCK_DATA_FILE = "data/SP500-100-2018-2019_2_AdjustedData.csv" #Filename for the data used for training
+TICKER_FILE = "data/SP500-100tickers.txt" #Filename for the symbols/tickers
 
 #Reduce these to reduce the data trained on.
-LIMIT_DATA = 1500 # there is about 2500 datapoints(days) for each stock.
-LIMIT_STOCKS = 50 #There is 10 years data for 30 stocks. Choose on how many you want to train.
+LIMIT_DATA = 1500 
+OFFSET_DATA = 0
+LIMIT_STOCKS = 140
 NUMBER_OF_CANDLES = 20
+SKIP_STOCK = 150
 
 ###
-REPLAY_MEMORY_SIZE = 50000
+REPLAY_MEMORY_SIZE = 2500
 MIN_REPLAY_MEMORY_SIZE = 1000
 
 settings = {"Model_name": MODEL_NAME,
@@ -35,7 +37,9 @@ settings = {"Model_name": MODEL_NAME,
             "Aggregate_stats_every":AGGREGATE_STATS_EVERY,
             "Limit_data": LIMIT_DATA,
             "Limit_stocks":LIMIT_STOCKS,
-            "Model_type":MODEL_TYPE}
+            "Model_type":MODEL_TYPE,
+            "Skip_stock":SKIP_STOCK,
+            "Offset_data":OFFSET_DATA}
 
 
 def main(stock, aphkey):
@@ -44,7 +48,6 @@ def main(stock, aphkey):
         settings["Stock_data_file"] = "testdata/testdata.csv"
         settings["Ticker_file"] = "testdata/testticker.txt"
         func.fetchstockdata(aphkey,True,stock,None)
-
 
 
     #Make stock env.
@@ -80,6 +83,8 @@ def main(stock, aphkey):
         print("Ep done ", episode)
 
     print("Exiting.")
+
+
 
 #main()
 

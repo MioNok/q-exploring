@@ -9,33 +9,36 @@ import time
 import numpy as np
 import random
 import tensorflow as tf
+import test
 
 #Input Constants.
 START_EPSILON = 1
-EPSILON_DECAY = 0.9998
+EPSILON_DECAY = 0.99965
 MIN_EPSILON = 0.05
 EPISODES = 30000
 AGGREGATE_STATS_EVERY = 100
 STOCK_DATA_FILE = "data/SP100_2015-2019data.csv" #Filename for the data used for training
 TICKER_FILE = "data/SP100tickers.txt" #Filename for the symbols/tickers
 
-LOAD_MODEL = None # "models/128x64.20c_RewSha-0.4_D-0.95____73.00max____4.37avg__-80.00min__1579872031ep_26700mod_MLP.model" # Load existing model?. Insert path.
-REPLAY_MEMORY_SIZE = 50000
+LOAD_MODEL = None #"models/128x64.20c_RewSha-0.5_D-0.95___121.90max___12.21avg__-39.98min__1583339925ep_11200mod_MLP.model" # Load existing model?. Insert path.
+REPLAY_MEMORY_SIZE = 2500
 MIN_REPLAY_MEMORY_SIZE = 1000
 
 MINIBATCH_SIZE = 64
-DISCOUNT = 0.9
+DISCOUNT = 0.99
 UPDATE_TARGET_EVERY = 5
 
 #How many candles should the prediction be made on?
-NUMBER_OF_CANDLES = 20
+NUMBER_OF_CANDLES = 40
 
-MODEL_NAME="RT128x64."+str(NUMBER_OF_CANDLES)+"c_RewSha-0.4_D-"+str(DISCOUNT)
+MODEL_NAME="128x64."+str(NUMBER_OF_CANDLES)+"c_RewSha-0.5_D-"+str(DISCOUNT)
 MODEL_TYPE ="MLP" #Currently MLP(Fully connected) or LSTM or CNN"
 
 #Reduce these to reduce the data trained on.
-LIMIT_DATA = 500 # Days of data for training
-LIMIT_STOCKS = 101 # Number of stocks to train on
+LIMIT_DATA = 503 # Days of data for training
+OFFSET_DATA = 170 # This gives us 2017-05-01 to 2019-04-30
+LIMIT_STOCKS = 98 # Number of stocks to train on (-DD, -DOW)
+SKIP_STOCK = 0
 
 
 settings = {"Model_name": MODEL_NAME,
@@ -51,7 +54,9 @@ settings = {"Model_name": MODEL_NAME,
             "Aggregate_stats_every":AGGREGATE_STATS_EVERY,
             "Limit_data": LIMIT_DATA,
             "Limit_stocks":LIMIT_STOCKS,
-            "Model_type":MODEL_TYPE}
+            "Model_type":MODEL_TYPE,
+            "Skip_stock":SKIP_STOCK,
+            "Offset_data":OFFSET_DATA}
 
 
 #Run this
@@ -104,10 +109,6 @@ def main(aphkey,data,preview):
         
             agent.update_replay_memory((current_state, action, reward, new_state, done))
             agent.train(done,step)
-
-            #if done:
-                #print(episode_reward)
-                #print(sess)
     
             current_state = new_state
             step+=1
