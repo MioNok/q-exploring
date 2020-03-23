@@ -4,6 +4,7 @@ import numpy as np
 import time
 import pandasql as ps
 import os
+import matplotlib.pyplot as plt
 
 
 #Logdata dataframe is saved here. Probably faster to have it globally than reading and writing to a large file.
@@ -14,7 +15,7 @@ def fetchstockdata(aphkey,test,ticker, tickerfile): # perhaps add apikey as a fl
     #If we are not running the test script
     if not test:
         #Read data from file. Transpose it, then to series and lastly to list.
-        symbols = pd.read_csv(tickerfile, header = None).transpose()[0].tolist()[150:]
+        symbols = pd.read_csv(tickerfile, header = None).transpose()[0].tolist()#[150:]
 
         #Fetch data from api
         counter = 0
@@ -22,7 +23,7 @@ def fetchstockdata(aphkey,test,ticker, tickerfile): # perhaps add apikey as a fl
         for symbol in symbols:
             stockdata_aph = pd.read_csv("https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol="+ symbol +"&outputsize=full&apikey="+aphkey+"&datatype=csv")
             stockdata_aph["ticker"] = symbol
-            stockdata = stockdata.append(stockdata_aph.iloc[40:542,]) # Number of trading days during this decade. 
+            stockdata = stockdata.append(stockdata_aph) # Number of trading days during this decade. 
             time.sleep(12) # Sleep because of the ratelimit on alphavantage
             print("fetched", symbol, counter)
             counter +=1
@@ -35,7 +36,7 @@ def fetchstockdata(aphkey,test,ticker, tickerfile): # perhaps add apikey as a fl
             os.makedirs('data')
 
         #Save data       
-        stockdata.to_csv("data/SP500-100-2018-2019_2_AdjustedData.csv",index = None, header = True)
+        stockdata.to_csv("data/SP500-100-All-time_1-150_data.csv",index = None, header = True)
      
     else:
         #Fetch data from api
@@ -59,7 +60,7 @@ def fetchstockdata(aphkey,test,ticker, tickerfile): # perhaps add apikey as a fl
 
     return stockdata
 
-def preprocessdata(datafilename,tickerstxt,limit, stocklimit,numcandles,skipstock = 0, offset = 0):
+def preprocessdata(datafilename,tickerstxt,limit, stocklimit,numcandles,skipstock = 0, offset = 0, fulltest =False):
     
     #The data
     stoset_raw = pd.read_csv(datafilename)
@@ -70,7 +71,8 @@ def preprocessdata(datafilename,tickerstxt,limit, stocklimit,numcandles,skipstoc
     stockdata = [] # Un normalized data for keeping track of stock prices
     normalized_stockdata = [] # Normalized data for training
     
-    progress_counter = 1        
+    progress_counter = 1
+    preprocessed_stocks = 0        
     for symbol in symbols:
         query = "SELECT timestamp, open, high, low, adjusted_close, volume FROM stoset_raw WHERE ticker = '"+symbol+"' LIMIT "+ str(limit)+ " OFFSET "+ str(offset)
         #query dataframe and reverse it so that the older data is first
@@ -79,7 +81,12 @@ def preprocessdata(datafilename,tickerstxt,limit, stocklimit,numcandles,skipstoc
         if stoset.shape[0] < numcandles:
             print("Not enough data for", symbol)
             progress_counter += 1 
-            continue 
+            continue
+
+        if stoset.shape[0] < limit and fulltest == True:
+            print("Not enough data for full test", symbol)
+            progress_counter += 1 
+            continue  
 
         #renaming the adjusted_close column to close to limit confusion in the rest of the program
         stoset.rename({"adjusted_close":"close"}, axis = 1, inplace = True) 
@@ -97,10 +104,16 @@ def preprocessdata(datafilename,tickerstxt,limit, stocklimit,numcandles,skipstoc
         
         #Helpful profgress counter.
         print("Preprocessing stocks from data",progress_counter,"/",len(symbols))
-        #print("shape",stoset.shape)
+        
+        #Print first and last date
+        if progress_counter == 1:
+            print("From:",stoset["timestamp"].iloc[0])
+            print("To:",stoset["timestamp"].iloc[-1])
+        print("Number of days:", stoset.shape[0])
+        preprocessed_stocks += 1
         progress_counter += 1
         
-    return stockdata, normalized_stockdata
+    return stockdata, normalized_stockdata,preprocessed_stocks
 
 
 def simplestrat(state,settings):
@@ -134,11 +147,60 @@ def appendlogdata(stocknr,episode,reward, current_port_sum, benchmark_port_sum, 
     return logdatafile
 
 
-def writelogdata(logdatafile, settings):
+def appendlogdataporttest(stocknr,step, current_port_sum, benchmark_port_sum,logdatafile,tickers,action):
+
+    #Logging the data and writing it to a csv 
+    logdict = {
+                #"Stocknr": int(stocknr),
+                #"Ticker": tickers[int(stocknr)],
+                "Step": int(step),
+                "current_port_sum": int(current_port_sum),
+                "benchmark_port_sum": int(benchmark_port_sum),
+                "action": int(action)}
+
+    logdatafile = logdatafile.append(logdict, ignore_index = True)
+    return logdatafile
+
+def writelogdata(logdatafile, settings, porttest = False):
     # Create testdata folder
     if not os.path.isdir('logdata'):
         os.makedirs('logdata')
 
-    #Update the file 
-    logdatafile.to_csv("logdata/Logdata"+ settings["Model_name"]+settings["Model_type"]+".csv")    
-    
+    if porttest == True:
+        #Update the file 
+        logdatafile.to_csv("logdata/Port_test-Logdata"+ settings["Model_name"]+settings["Model_type"]+".csv")    
+    else:
+        #Update the file 
+        logdatafile.to_csv("logdata/Logdata"+ settings["Model_name"]+settings["Model_type"]+".csv")    
+
+
+#Plotting the results from the portfolio data test.
+def plotporttestdata(model_name,model_type):
+    portdata = pd.read_csv("logdata/Port_test-Logdata"+ model_name+model_type+".csv")
+
+    algo_port_sum_list = []
+    benchmark_port_sum_list = []
+
+    current_step = 0
+    temp_sum_algo = 0
+    temp_sum_benchmark = 0
+    for row in portdata.iterrows():
+        if current_step == row[1].Step:
+            temp_sum_algo += row[1].current_port_sum
+            temp_sum_benchmark += row[1].benchmark_port_sum
+
+            
+        else:
+            benchmark_port_sum_list.append(temp_sum_benchmark)
+            algo_port_sum_list.append(temp_sum_algo)
+            temp_sum_algo = row[1].current_port_sum
+            temp_sum_benchmark = row[1].benchmark_port_sum
+            current_step +=1
+
+    plt.figure(figsize=(15,10))
+    plt.plot(algo_port_sum_list, label = "Reinforced-Algo portfolio")
+    plt.plot(benchmark_port_sum_list, label = "Benchmark portfolio")
+    plt.legend(loc="upper left")
+    plt.ylabel("Portfolio value")
+    plt.xlabel("Timesteps / days")
+    plt.show()

@@ -98,12 +98,15 @@ class Portfolio:
 
 
                 
-    def new_stock(self):
-        self.portfolio["ticker"].append("TBA")
+    def new_stock(self, ticker):
+        self.portfolio["ticker"].append(ticker)
         self.portfolio["share"].append(0)
         self.portfolio["currentstockvalue"].append(0)
         self.portfolio["unusedBP"].append(10000)
         self.portfolio["porthistory"].append([10000])     
+
+
+
         
         
 
@@ -118,13 +121,14 @@ class StockEnv:
 
         self.amount_of_stocks = settings["Limit_stocks"]
         self.preview = preview
-        self.stoset , self.normalized_stoset = func.preprocessdata(settings["Stock_data_file"],
-                                                                   settings["Ticker_file"],
-                                                                   settings["Limit_data"], 
-                                                                   settings["Limit_stocks"],
-                                                                   settings["Number_of_candles"],
-                                                                   settings["Skip_stock"],
-                                                                   settings["Offset_data"])
+        self.stoset , self.normalized_stoset, self.preprosNumStocks = func.preprocessdata(settings["Stock_data_file"],
+                                                                                            settings["Ticker_file"],
+                                                                                            settings["Limit_data"], 
+                                                                                            settings["Limit_stocks"],
+                                                                                            settings["Number_of_candles"],
+                                                                                            settings["Skip_stock"],
+                                                                                            settings["Offset_data"],
+                                                                                            settings["Fulltest"])
         
         self.NUM_CANDLES = settings["Number_of_candles"] 
         self.ACTION_SPACE_SIZE = 3 #sell = 0, hold = 1, buy = 2
@@ -141,6 +145,8 @@ class StockEnv:
 
         self.tickers = pd.read_csv(self.settings["Ticker_file"]).transpose().index
         
+        
+
     def reset(self, rand):
         #reset and return first observation
         self.current_portfolio = Portfolio()
@@ -173,6 +179,30 @@ class StockEnv:
         self.last_reward_pcr = 0
 
         return observation
+
+        
+    #Only used in testport.py
+    def portReset(self, episode,preprosNumStocks):
+
+        if episode == 0:
+            #reset and return first observation
+            self.current_portfolio = Portfolio()
+            self.buy_n_hold_portfolio = Portfolio()
+            self.current_step = 0
+            #self.current_stock = 0
+
+        #first observation
+        observation = self.get_data()
+
+        #Just go trough all one by one.
+        self.current_stock += 1
+
+        if self.current_stock == preprosNumStocks:
+            self.current_stock = 0
+            self.current_step += 1
+
+
+        return observation , self.current_step
     
     
     def step(self, action, episode,simplestrat_action):
@@ -181,15 +211,7 @@ class StockEnv:
         #self.stock_size = self.stoset[self.current_stock].shape[0]
 
         #update current_portfolio
-        try:
-            self.buy_n_hold_portfolio.action(2, self.current_step, self.stoset[self.current_stock], self.NUM_CANDLES, 0)
-            self.current_portfolio.action(action, self.current_step, self.stoset[self.current_stock], self.NUM_CANDLES, 0)
-        except:
-            print(action)
-            print(self.current_step)
-            print(self.stoset[self.current_stock])
-            print(self.current_stock)
-            #print(self.stoset)
+        self.current_portfolio.action(action, self.current_step, self.stoset[self.current_stock], self.NUM_CANDLES, 0)
 
         #The Benchmark
         #update buy and hold portfolio. It always buys an then holds untill the next stock.
@@ -248,13 +270,12 @@ class StockEnv:
             self.logdatafile = func.appendlogdata(self.current_stock, episode, self.ep_reward, current_port_sum, benchmark_port_sum, reward_pcr, self.logdatafile, self.tickers)
 
             #Wtite the data to file every now and then.
-            if episode % 10 == 0 or episode == 1:
+            if episode % 5 == 0 or episode == 1:
                 func.writelogdata(self.logdatafile, self.settings)
 
 
             #If preview is set to true, save graph of the performace.
-            # Dont save it every round, only if the episode is divisible by Aggregate_stats_every
-            if self.preview and not episode % self.settings["Aggregate_stats_every"]:
+            if self.preview:
                 #Port values.
                 current_port_history = np.array(self.current_portfolio.portfolio["porthistory"][0])#Switch 0 to self.current_stock if training on multiple stock in one episode.
                 benchmark_port_history = np.array(self.buy_n_hold_portfolio.portfolio["porthistory"][0])#Switch 0 to self.current_stock if training on multiple stock in one episode.
@@ -268,20 +289,21 @@ class StockEnv:
                 if not os.path.isdir('graphs'):
                     os.makedirs('graphs')
 
-
                 #Plot graphs and show them
                 plt.figure(figsize=(20,10))
                 plt.plot(dates,current_port_history, label = "Reinforced portfolio")
                 plt.plot(dates,benchmark_port_history, label = "Benchmark portfolio")
-                plt.plot(dates,simplestrat_port_history, label = "Simplestrat portfolio")
+                #plt.plot(dates,simplestrat_port_history, label = "Simplestrat portfolio")
                 plt.legend(loc="upper left")
                 
                 #Save graph to folder
-                plt.savefig("graphs/Fig_stock"+str(self.current_stock)+"_ep"+str(episode)+"_type"+self.settings["Model_type"]+".png")
+                plt.savefig("graphs/Fig_stock"+str(self.tickers[self.current_stock])+"_ep"+str(episode)+"_type"+self.settings["Model_type"]+str(int(time.time()))+".png")
                 #Uncomment to show graphs as they come instead.
                 #plt.show(block=False)
                 #plt.pause(5)
                 plt.close()
+                
+                
 
             #Stock is finnished, give reward, reset steps and move to next stock
             #Reset the steps and add to stock unless we are at we are at the last stock. Env.reset will reset it
@@ -303,6 +325,38 @@ class StockEnv:
             done = True
         
         return next_observation, reward, done
+
+    #Only used in testport.py
+    def portTestStep(self, action, episode,step):
+
+        self.current_step = step
+
+        #update current_portfolio
+        self.current_portfolio.action(action, self.current_step, self.stoset[self.current_stock], self.NUM_CANDLES, self.current_stock)
+
+
+        #The Benchmark
+        #update buy and hold portfolio. It always buys an then holds untill the next stock.
+        self.buy_n_hold_portfolio.action(2, self.current_step, self.stoset[self.current_stock], self.NUM_CANDLES, self.current_stock)
+
+        current_port_sum = self.current_portfolio.portfolio["share"][self.current_stock] * self.current_portfolio.portfolio["currentstockvalue"][self.current_stock] + self.current_portfolio.portfolio["unusedBP"][self.current_stock]#Switch 0 to self.current_stock if training on multiple stock in one episode.
+        benchmark_port_sum = self.buy_n_hold_portfolio.portfolio["share"][self.current_stock] * self.buy_n_hold_portfolio.portfolio["currentstockvalue"][self.current_stock] + self.buy_n_hold_portfolio.portfolio["unusedBP"][self.current_stock]#Switch 0 to self.current_stock if training on multiple stock in one episode.
+
+        #Logging some data to plot later
+        self.logdatafile = func.appendlogdataporttest(self.current_stock, self.current_step, current_port_sum, benchmark_port_sum, self.logdatafile, self.tickers, action)
+
+        #Write the data to file
+        if step == (self.settings["Limit_data"]-self.settings["Number_of_candles"]) or step % 200 == 0:
+            func.writelogdata(self.logdatafile, self.settings, True)
+
+  
+    
+        #Set up the portfolio to accept a new stock if we loop trough multiple stocks.
+        if episode < self.amount_of_stocks:
+            self.current_portfolio.new_stock(self.tickers[self.current_stock])
+            self.buy_n_hold_portfolio.new_stock(self.tickers[self.current_stock])
+        
+   
     
     def get_data(self):
         #Get the data 
@@ -394,16 +448,17 @@ class DQNAgent:
         else:
             if self.settings["Model_type"] == "MLP":
                 model = Sequential()
-                model.add(Dense(128, input_shape = self.env.OBSEREVATION_SPACE_VALUES))
+                model.add(Dense(64, input_shape = self.env.OBSEREVATION_SPACE_VALUES))
                 model.add(Activation("relu"))
-                model.add(Dropout(0.2))
+                model.add(Dropout(0.4))
             
                 #model.add(Dense(128))
                 #model.add(Activation("relu"))
-                #model.add(Dropout(0.2))
+                #model.add(Dropout(0.3))
 
                 model.add(Flatten())
                 model.add(Dense(64))
+                model.add(Dropout(0.15))
                 model.add(Activation("relu"))
                 model.add(Dense(self.env.ACTION_SPACE_SIZE, activation = "linear"))
                 model.compile(loss = "mse", optimizer = Adam(lr=0.001), metrics=["accuracy"])
@@ -411,16 +466,16 @@ class DQNAgent:
             elif self.settings["Model_type"] == "LSTM":
                 model = Sequential()
                 model.add(CuDNNLSTM(128, input_shape=self.env.OBSEREVATION_SPACE_VALUES, return_sequences=True))#CuDNNLSTM
-                model.add(Dropout(0.2))
+                #model.add(Dropout(0.4))
                 model.add(BatchNormalization()) 
 
-                model.add(CuDNNLSTM(128))#CuDNNLSTM, no activation
-                model.add(Dropout(0.2))
-                model.add(BatchNormalization())
+                #model.add(CuDNNLSTM(128))#CuDNNLSTM, no activation
+                #model.add(Dropout(0.2))
+                #model.add(BatchNormalization())
                 model.add(Flatten())
 
-                model.add(Dense(64, activation='relu'))
-                model.add(Dropout(0.2))
+                model.add(Dense(128, activation='relu'))
+                #model.add(Dropout(0.2))
 
                 model.add(Dense(self.env.ACTION_SPACE_SIZE, activation='softmax'))
                 model.compile(loss='sparse_categorical_crossentropy', optimizer= Adam(lr=0.001), metrics=['accuracy'])
@@ -488,7 +543,7 @@ class DQNAgent:
             x.append(current_state)
             y.append(current_qs)
         
-        # Not needed anymore
+        # Ghettoo solution.
         #if self.settings["Model_type"] == "LSTM":
         #    y_new = []
         #    for row in y:

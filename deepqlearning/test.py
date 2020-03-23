@@ -9,24 +9,27 @@ from keras.optimizers import Adam
 
 
 #Model to test on:
-LOAD_MODEL = "models/128x64.20c_RewSha-0.5_D-0.99____82.28max____9.39avg__-22.89min__1583502676ep_15500mod_MLP.model" # Load existing model?. Insert path.
-MODEL_NAME="Test_spdata1_128x64.20c_RewSha-0.5_D-0.99"
+LOAD_MODEL = "models/256x256.20c_RewSha-0.5_DO_0.4D-0.99____45.10max___11.27avg__-25.95min__1584554332ep_9700mod_MLP.model" # Load existing model?. Insert path.
+MODEL_NAME="Test_256x256.20c_RewSha-0.5_DO_0.4D-0.99_test_serie_sp500_1"
 MODEL_TYPE="MLP"
 #Input Constants.
 AGGREGATE_STATS_EVERY = 1
-STOCK_DATA_FILE = "data/SP500-100-2018-2019_2_AdjustedData.csv" #Filename for the data used for training
+STOCK_DATA_FILE = "data/SP500-100-2018-2019_1_AdjustedData.csv" #Filename for the data used for training
 TICKER_FILE = "data/SP500-100tickers.txt" #Filename for the symbols/tickers
 
 #Reduce these to reduce the data trained on.
-LIMIT_DATA = 1500 
+LIMIT_DATA = 2000
 OFFSET_DATA = 0
-LIMIT_STOCKS = 140
+LIMIT_STOCKS = 130
 NUMBER_OF_CANDLES = 20
-SKIP_STOCK = 150
+SKIP_STOCK = 0
 
 ###
 REPLAY_MEMORY_SIZE = 2500
 MIN_REPLAY_MEMORY_SIZE = 1000
+
+#Only use stocks that have the wished amount of data and no less?
+FULLTEST = False
 
 settings = {"Model_name": MODEL_NAME,
             "Stock_data_file": STOCK_DATA_FILE,
@@ -39,7 +42,8 @@ settings = {"Model_name": MODEL_NAME,
             "Limit_stocks":LIMIT_STOCKS,
             "Model_type":MODEL_TYPE,
             "Skip_stock":SKIP_STOCK,
-            "Offset_data":OFFSET_DATA}
+            "Offset_data":OFFSET_DATA,
+            "Fulltest":FULLTEST}
 
 
 def main(stock, aphkey):
@@ -51,7 +55,7 @@ def main(stock, aphkey):
 
 
     #Make stock env.
-    env = models.StockEnv(settings, True)
+    env = models.StockEnv(settings, preview =True)
     agent = models.DQNAgent(env,settings)
 
     # For more repetitive results
